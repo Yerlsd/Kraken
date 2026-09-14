@@ -19,7 +19,7 @@ extension EpicGamesGameManager: StorefrontGameManager {
         try await importGame(castGame, in: location.deletingLastPathComponent(), platform: platform)
     }
     
-    static func install(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation {
+    @MainActor static func install(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation {
         guard case .epicGames = game.storefront,
               let castGame = game as? EpicGamesGame else { throw CocoaError(.coderInvalidValue) }
 
@@ -33,7 +33,7 @@ extension EpicGamesGameManager: StorefrontGameManager {
         return try await update(game: castGame, qualityOfService: qualityOfService)
     }
 
-    static func repair(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation {
+    @MainActor static func repair(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation {
         guard case .epicGames = game.storefront,
               let castGame = game as? EpicGamesGame else { throw CocoaError(.coderInvalidValue) }
 
@@ -82,7 +82,7 @@ final class EpicGamesGameManager {
     static var log: Logger { .custom(category: "EpicGamesGameManager") }
 
     @discardableResult
-    static func install(game: EpicGamesGame,
+    @MainActor static func install(game: EpicGamesGame,
                         forPlatform platform: Game.Platform,
                         qualityOfService: QualityOfService,
                         optionalPackIDs: [String] = .init(),
@@ -100,7 +100,7 @@ final class EpicGamesGameManager {
     }
 
     @discardableResult
-    static func repair(game: EpicGamesGame, qualityOfService: QualityOfService) async throws -> GameOperation {
+    @MainActor static func repair(game: EpicGamesGame, qualityOfService: QualityOfService) async throws -> GameOperation {
         return try await Legendary.repair(game: game, qualityOfService: qualityOfService)
     }
 
@@ -113,17 +113,20 @@ final class EpicGamesGameManager {
     }
 
     @discardableResult
+@MainActor
     static func launch(game: EpicGamesGame) async throws -> GameOperation {
         return try await Legendary.launch(game: game)
     }
 
     @discardableResult
+@MainActor
     static func move(game: EpicGamesGame,
                      to newLocation: URL) async throws -> GameOperation {
         return try await Legendary.move(game: game, to: newLocation)
     }
 
     @discardableResult
+    @MainActor
     static func uninstall(game: EpicGamesGame,
                           persistFiles: Bool,
                           runUninstallerIfPossible: Bool = true) async throws -> GameOperation {
