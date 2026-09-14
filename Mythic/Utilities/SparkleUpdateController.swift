@@ -51,15 +51,18 @@ final class SparkleUpdateController: NSObject, SPUUserDriver, ObservableObject {
             backgroundTask = AnyCancellable(
                 backgroundQueue.schedule(
                     after: .init(.now()),
-                    interval: .seconds(60 * 60 * 6)
-                ) {
-                    Task { @MainActor in
-                        SparkleUpdateController.shared.checkForUpdates(userInitiated: false)
-                    }
-                }
+                    interval: .seconds(60 * 60 * 6),
+                    Self.runScheduledUpdate
+                )
             )
         } else {
             backgroundTask?.cancel()
+        }
+    }
+
+    nonisolated private static func runScheduledUpdate() {
+        Task { @MainActor in
+            SparkleUpdateController.shared.checkForUpdates(userInitiated: false)
         }
     }
 
