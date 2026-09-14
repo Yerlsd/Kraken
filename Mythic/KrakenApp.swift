@@ -12,7 +12,7 @@ import Sparkle
 import WhatsNewKit
 
 @main
-struct MythicApp: App {
+struct KrakenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @AppStorage("isOnboardingPresented") var isOnboardingPresented: Bool = true
@@ -22,7 +22,7 @@ struct MythicApp: App {
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
-        Window("Mythic", id: "main") {
+        Window("Kraken", id: "main") {
             Group {
                 if isOnboardingPresented {
                     OnboardingView()
@@ -65,12 +65,12 @@ struct MythicApp: App {
                 Button {
                     openWindow(id: "about")
                 } label: {
-                    Text("About Mythic")
+                    Text("About Kraken")
                 }
             }
 
             CommandGroup(after: .appInfo) {
-                Button("Check for Mythic Updates...", action: { SparkleUpdateController.shared.checkForUpdates(userInitiated: true) })
+                Button("Check for Kraken Updates...", action: { SparkleUpdateController.shared.checkForUpdates(userInitiated: true) })
                 
                 Button("Check for Mythic Engine Updates...") {
                     Task(priority: .userInitiated) {

@@ -10,7 +10,7 @@
 import WhatsNewKit
 import SwiftUI
 
-extension MythicApp: @MainActor WhatsNewCollectionProvider {
+extension KrakenApp: @MainActor WhatsNewCollectionProvider {
     var whatsNewCollection: WhatsNewCollection {
         WhatsNew(
             version: "0.4.1",
@@ -44,7 +44,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.4.1"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.1"))
             )
         )
 
@@ -80,7 +80,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.4.2"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.2"))
             )
         )
 
@@ -116,7 +116,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.4.3"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.3"))
             )
         )
 
@@ -160,7 +160,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.4.4"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.4"))
             )
         )
 
@@ -205,7 +205,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.4.5"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.5"))
             )
         )
 
@@ -242,7 +242,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.5.0"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.5.0"))
             )
         )
         
@@ -282,7 +282,7 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/MythicApp/Mythic/releases/tag/v0.6.0"))
+                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.6.0"))
             )
         )
         
@@ -291,5 +291,5 @@ extension MythicApp: @MainActor WhatsNewCollectionProvider {
 }
 
 #Preview {
-    WhatsNewView(whatsNew: MythicApp().whatsNewCollection.last ?? WhatsNew(title: "N/A", features: []))
+    WhatsNewView(whatsNew: KrakenApp().whatsNewCollection.last ?? WhatsNew(title: "N/A", features: []))
 }
