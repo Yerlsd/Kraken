@@ -45,7 +45,7 @@ extension SparkleUpdater {
                             }
                         }
                         
-                        Text("You are running \(Mythic.appVersion?.description ?? "Unknown"). Would you like to download the update?")
+                        Text("You are running \(appVersion?.description ?? "Unknown"). Would you like to download the update?")
                             .font(.callout)
                             .multilineTextAlignment(.center)
                             .opacity(0.6)

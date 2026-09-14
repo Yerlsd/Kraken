@@ -73,8 +73,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 #if !DEBUG
         if !Bundle.main.bundleURL.pathComponents.contains("Applications") {
             let alert = NSAlert()
-            alert.messageText = String(localized: "Mythic has detected it's running outside of the applications folder.")
-            alert.informativeText = String(localized: "It's recommended to move Mythic into the Applications folder on your device.")
+            alert.messageText = String(localized: "Kraken has detected it's running outside of the applications folder.")
+            alert.informativeText = String(localized: "It's recommended to move Kraken into the Applications folder on your device.")
             alert.alertStyle = .informational
             alert.addButton(withTitle: String(localized: "OK"))
 
@@ -127,7 +127,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let alert: NSAlert = .init()
         
         alert.messageText = String(localized: "Are you sure you want to quit?")
-        alert.informativeText = String(localized: "Mythic is still operating on games.")
+        alert.informativeText = String(localized: "Kraken is still operating on games.")
         alert.alertStyle = .warning
         
         alert.addButton(withTitle: String(localized: "Quit"))
@@ -172,7 +172,7 @@ extension AppDelegate: SwordRPCDelegate {
     func swordRPCDidConnect(_ rpc: SwordRPC) {
         rpc.setPresence({
             var presence: RichPresence = .init()
-            presence.details = "Idling in Mythic"
+            presence.details = "Idling in Kraken"
             presence.state = "Idle"
             presence.timestamps.start = .now
             presence.assets.largeImage = "macos_512x512_2x"
