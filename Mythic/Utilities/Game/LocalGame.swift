@@ -49,7 +49,7 @@ class LocalGame: Game {
         try await LocalGameManager.move(game: self, to: newLocation)
     }
     
-    override func _verifyInstallation() async throws {
+    @MainActor override func _verifyInstallation() async throws {
         assertionFailure("Attempted to verify the installation of a LocalGame, which is not possible.")
     }
 }

@@ -202,6 +202,7 @@ final class Legendary {
      */
 
     @discardableResult
+    @MainActor
     static func install(game: EpicGamesGame,
                         forPlatform platform: Game.Platform,
                         qualityOfService: QualityOfService,
@@ -285,7 +286,7 @@ final class Legendary {
     }
 
     @discardableResult
-    static func repair(game: EpicGamesGame, qualityOfService: QualityOfService) async throws -> GameOperation {
+    @MainActor static func repair(game: EpicGamesGame, qualityOfService: QualityOfService) async throws -> GameOperation {
         let arguments: [String] = ["-y", "install", game.id, "--repair"]
 
         let operation: GameOperation = .init(game: game, type: .repair) { progress in
@@ -352,6 +353,7 @@ final class Legendary {
        --skip-uninstaller  Skip running the uninstaller
      */
     @discardableResult
+    @MainActor
     static func uninstall(game: EpicGamesGame,
                           persistFiles: Bool,
                           runUninstallerIfPossible: Bool = true) async throws -> GameOperation {
@@ -405,6 +407,7 @@ final class Legendary {
                         already moved)
      */
     @discardableResult
+    @MainActor
     static func move(game: EpicGamesGame, to newLocation: URL) async throws -> GameOperation {
         guard case .installed(let currentLocation, let platform) = game.installationState else {
             throw CocoaError(.fileNoSuchFile)
@@ -523,6 +526,7 @@ final class Legendary {
      Launches games.
      */
     @discardableResult
+    @MainActor
     static func launch(game: EpicGamesGame) async throws -> GameOperation {
         guard case .installed(_, let platform) = game.installationState else {
             throw CocoaError(.fileNoSuchFile)
@@ -590,14 +594,10 @@ final class Legendary {
     }
 
     static func fetchPreInstallationMetadata(
-        game: EpicGamesGame,
+        gameID: String,
         platform: Game.Platform
     ) async throws -> (installSize: Int64?, optionalPacks: [String: String]) {
-        guard case .uninstalled = game.installationState else {
-            throw CocoaError(.fileNoSuchFile)
-        }
-
-        let arguments: [String] = ["install", game.id, "--platform", matchPlatform(for: platform)]
+        let arguments: [String] = ["install", gameID, "--platform", matchPlatform(for: platform)]
         
         var installSize: Int64?
         var optionalPacks: [String: String] = .init()
@@ -609,50 +609,43 @@ final class Legendary {
         
         // note that install size and optional packs are mutually exclusive in this context.
         try await withTaskCancellationHandler {
-            try await executeStreamed(process) { chunk in
+            for try await chunk in process.runStreamed() {
                 switch chunk.stream {
                 case .standardError:
-                    // Handle install size
-                    Task {
-                        // legendary always returns install size in MiB
-                        if let match = try? Regex(#"Install size: (\d+(?:\.\d+)?) MiB"#).firstMatch(in: chunk.output),
-                           let sizeString = match[1].substring,
-                           let sizeValue = Double(sizeString) {
-                            await MainActor.run {
-                                installSize = Int64(Int(sizeValue) * 1_048_576) // MiB ➜ B
-                                
-                                process.interrupt()
-                            }
-                        }
+                    // Handle install size. Legendary always returns install size in MiB.
+                    if let match = try? Regex(#"Install size: (\d+(?:\.\d+)?) MiB"#).firstMatch(in: chunk.output),
+                       let sizeString = match[1].substring,
+                       let sizeValue = Double(sizeString) {
+                        installSize = Int64(Int(sizeValue) * 1_048_576) // MiB ➜ B
+                        process.interrupt()
                     }
-                    
+
+                    try handleCLIErrorOutput(fromStandardErrorOutput: chunk.output)
+
                 case .standardOutput:
-                    // Handle optional packs
-                    Task { @MainActor in
-                        if let match = try? Regex(#"\s*\* (?<identifier>\w+) - (?<name>.+)"#).firstMatch(in: chunk.output),
-                           let id = match["identifier"]?.substring,
-                           let name = match["name"]?.substring {
-                            optionalPacks[String(id)] = String(name)
-                        }
+                    // Handle optional packs. Chunks are consumed serially here, so these
+                    // local values are not mutated from a separate concurrent Task.
+                    if let match = try? Regex(#"\s*\* (?<identifier>\w+) - (?<name>.+)"#).firstMatch(in: chunk.output),
+                       let id = match["identifier"]?.substring,
+                       let name = match["name"]?.substring {
+                        optionalPacks[String(id)] = String(name)
                     }
-                    
+
                     if chunk.output.contains("Please enter tags of pack(s) to install") {
                         process.interrupt()
                     }
-                    
+
                     // Handle installation requirements check results
                     /* TODO: not implemented, may be unnecessary
                      if chunk.output.contains(" - Warning:") {
-                     
+
                      }
-                     
+
                      if chunk.output.contains(" ! Failure:") {
-                     
+
                      }
                      */
                 }
-                
-                return nil
             }
         } onCancel: {
             process.interrupt()

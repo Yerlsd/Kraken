@@ -38,13 +38,13 @@ protocol GameManager {
 /// Protocol defining additional game manager functionality for storefronts (Epic, Steam, etc.)
 protocol StorefrontGameManager: GameManager {
     /// Update the specified game, if possible.
-    @discardableResult static func install(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation
+    @MainActor @discardableResult static func install(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation
 
     /// Update the specified game, if possible.
     @discardableResult static func update(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation
 
     /// Repair the specified game, if necessary.
-    @discardableResult static func repair(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation
+    @MainActor @discardableResult static func repair(game: Game, qualityOfService: QualityOfService) async throws -> GameOperation
 
     /// Check if a game update is available.
     static func fetchUpdateAvailability(for game: Game) throws -> Bool

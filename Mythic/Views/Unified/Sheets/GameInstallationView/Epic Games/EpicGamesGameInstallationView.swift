@@ -46,7 +46,7 @@ struct EpicGamesGameInstallationView: View {
             defer {
                 withAnimation { fetchingOptionalPacks = false }
             }
-            (installSizeInBytes, optionalPacks) = (try? await Legendary.fetchPreInstallationMetadata(game: game, platform: platform)) ?? (nil, .init())
+            (installSizeInBytes, optionalPacks) = (try? await Legendary.fetchPreInstallationMetadata(gameID: game.id, platform: platform)) ?? (nil, .init())
         }
     }
 
