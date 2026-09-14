@@ -11,6 +11,20 @@ import Foundation
 import OSLog
 import AppKit
 
+/// Per-game configuration describing how the game should be launched.
+///
+/// This is intentionally data-only. Runtime and backend selection will be
+/// introduced separately as Kraken's launcher architecture evolves.
+struct LaunchProfile: Codable, Equatable, Sendable {
+    var containerURL: URL?
+    var launchArguments: [String]
+
+    init(containerURL: URL? = nil, launchArguments: [String] = []) {
+        self.containerURL = containerURL
+        self.launchArguments = launchArguments
+    }
+}
+
 @Observable class Game: Codable, Identifiable {
     @MainActor static let operationManager: GameOperationManager = .shared
 
@@ -23,18 +37,20 @@ import AppKit
         return nil
     }
 
-    // swiftlint:disable:next identifier_name
-    internal final var _containerURL: URL?
+    /// Canonical per-game launch configuration.
+    var launchProfile: LaunchProfile
+
+    /// Transitional compatibility accessor. `launchProfile` is the canonical source of truth.
     final var containerURL: URL? {
         get {
-            if Wine.containerURLs.first(where: { $0 == _containerURL }) == nil
-                || _containerURL == nil {
-                _containerURL = Wine.containerURLs.first
+            if Wine.containerURLs.first(where: { $0 == launchProfile.containerURL }) == nil
+                || launchProfile.containerURL == nil {
+                launchProfile.containerURL = Wine.containerURLs.first
             }
 
-            return _containerURL
+            return launchProfile.containerURL
         }
-        set { _containerURL = newValue }
+        set { launchProfile.containerURL = newValue }
     }
 
     var isUpdateAvailable: Bool? { nil } // override in subclass
@@ -49,7 +65,11 @@ import AppKit
     var horizontalImageURL: URL? { _horizontalImageURL ?? computedHorizontalImageURL }
     internal var computedHorizontalImageURL: URL? { nil } // override in subclass — Auto-synthesized (default) image URL
 
-    var launchArguments: [String] = []
+    /// Transitional compatibility accessor. `launchProfile` is the canonical source of truth.
+    var launchArguments: [String] {
+        get { launchProfile.launchArguments }
+        set { launchProfile.launchArguments = newValue }
+    }
     final var isFavourited: Bool = false
     final var lastLaunched: Date?
 
@@ -64,7 +84,7 @@ import AppKit
         self.title = title
         self.installationState = installationState
 
-        self._containerURL = containerURL ?? Wine.containerURLs.first
+        self.launchProfile = .init(containerURL: containerURL ?? Wine.containerURLs.first)
     }
 
     required init(from decoder: Decoder) throws {
@@ -75,8 +95,13 @@ import AppKit
         self.installationState = try container.decode(InstallationState.self, forKey: .installationState)
         self._verticalImageURL = try container.decodeIfPresent(URL.self, forKey: ._verticalImageURL)
         self._horizontalImageURL = try container.decodeIfPresent(URL.self, forKey: ._horizontalImageURL)
-        self._containerURL = try container.decodeIfPresent(URL.self, forKey: ._containerURL)
-        self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
+
+        let legacyContainer = try decoder.container(keyedBy: LegacyCodingKeys.self)
+        let legacyContainerURL = try legacyContainer.decodeIfPresent(URL.self, forKey: ._containerURL)
+        let legacyLaunchArguments = try legacyContainer.decodeIfPresent([String].self, forKey: .launchArguments)
+
+        self.launchProfile = try container.decodeIfPresent(LaunchProfile.self, forKey: .launchProfile)
+            ?? .init(containerURL: legacyContainerURL, launchArguments: legacyLaunchArguments ?? [])
         self.isFavourited = try container.decode(Bool.self, forKey: .isFavourited)
         self.lastLaunched = try container.decodeIfPresent(Date.self, forKey: .lastLaunched)
     }
@@ -214,11 +239,17 @@ extension Game {
         // swiftlint:disable identifier_name
         case _verticalImageURL,
              _horizontalImageURL
-        case _containerURL
         // swiftlint:enable identifier_name
-        case launchArguments,
+        case launchProfile,
              isFavourited,
              lastLaunched
+    }
+
+    private enum LegacyCodingKeys: String, CodingKey {
+        // swiftlint:disable identifier_name
+        case _containerURL
+        // swiftlint:enable identifier_name
+        case launchArguments
     }
 
     func encode(to encoder: Encoder) throws {
@@ -230,8 +261,7 @@ extension Game {
         try container.encodeIfPresent(storefront, forKey: .storefront)
         try container.encodeIfPresent(_verticalImageURL, forKey: ._verticalImageURL)
         try container.encodeIfPresent(_horizontalImageURL, forKey: ._horizontalImageURL)
-        try container.encodeIfPresent(_containerURL, forKey: ._containerURL)
-        try container.encode(launchArguments, forKey: .launchArguments)
+        try container.encode(launchProfile, forKey: .launchProfile)
         try container.encode(isFavourited, forKey: .isFavourited)
         try container.encodeIfPresent(lastLaunched, forKey: .lastLaunched)
     }
@@ -249,8 +279,10 @@ extension Game: Mergeable {
         .init(\Game.installationState, forCodingKey: .installationState, strategy: { max($0, $1) }),
         .init(\Game._verticalImageURL, forCodingKey: ._verticalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game._horizontalImageURL, forCodingKey: ._horizontalImageURL, strategy: { $1 ?? $0 }),
-        .init(\Game._containerURL, forCodingKey: ._containerURL, strategy: { $0 ?? $1 }),
-        .init(\Game.launchArguments, forCodingKey: .launchArguments, strategy: { Array(Set($0 + $1)) }),
+        .init(\Game.launchProfile, forCodingKey: .launchProfile, strategy: { current, new in
+            .init(containerURL: current.containerURL ?? new.containerURL,
+                  launchArguments: Array(Set(current.launchArguments + new.launchArguments)))
+        }),
         .init(\Game.isFavourited, forCodingKey: .isFavourited, strategy: { $0 || $1 }),
         AnyMergeRule(\Game.lastLaunched, forCodingKey: .lastLaunched) { current, new in
             guard current != nil || new != nil else { return current }
