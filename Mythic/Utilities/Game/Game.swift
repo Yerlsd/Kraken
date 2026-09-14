@@ -16,21 +16,22 @@ import AppKit
 /// This is intentionally data-only. Runtime and backend selection will be
 /// introduced separately as Kraken's launcher architecture evolves.
 struct LaunchProfile: Codable, Equatable, Sendable {
-    var containerURL: URL?
+    var container: ContainerReference?
     var runtimeID: RuntimeID
     var launchArguments: [String]
 
     init(
-        containerURL: URL? = nil,
+        container: ContainerReference? = nil,
         runtimeID: RuntimeID = Runtime.current.id,
         launchArguments: [String] = []
     ) {
-        self.containerURL = containerURL
+        self.container = container
         self.runtimeID = runtimeID
         self.launchArguments = launchArguments
     }
 
     private enum CodingKeys: String, CodingKey {
+        case container
         case containerURL
         case runtimeID
         case launchArguments
@@ -38,14 +39,15 @@ struct LaunchProfile: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.containerURL = try container.decodeIfPresent(URL.self, forKey: .containerURL)
+        self.container = try container.decodeIfPresent(ContainerReference.self, forKey: .container)
+            ?? container.decodeIfPresent(URL.self, forKey: .containerURL).map(ContainerReference.init(url:))
         self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? Runtime.current.id
         self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(containerURL, forKey: .containerURL)
+        try container.encodeIfPresent(self.container, forKey: .container)
         try container.encode(runtimeID, forKey: .runtimeID)
         try container.encode(launchArguments, forKey: .launchArguments)
     }
@@ -66,17 +68,17 @@ struct LaunchProfile: Codable, Equatable, Sendable {
     /// Canonical per-game launch configuration.
     var launchProfile: LaunchProfile
 
-    /// Transitional compatibility accessor. `launchProfile` is the canonical source of truth.
+    /// Transitional compatibility accessor. `launchProfile.container` is the canonical source of truth.
     final var containerURL: URL? {
         get {
-            if Wine.containerURLs.first(where: { $0 == launchProfile.containerURL }) == nil
-                || launchProfile.containerURL == nil {
-                launchProfile.containerURL = Wine.containerURLs.first
+            let url = launchProfile.container?.url
+            if Wine.containerURLs.first(where: { $0 == url }) == nil || url == nil {
+                launchProfile.container = Wine.containerURLs.first.map(ContainerReference.init(url:))
             }
 
-            return launchProfile.containerURL
+            return launchProfile.container?.url
         }
-        set { launchProfile.containerURL = newValue }
+        set { launchProfile.container = newValue.map(ContainerReference.init(url:)) }
     }
 
     var isUpdateAvailable: Bool? { nil } // override in subclass
@@ -110,7 +112,10 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         self.title = title
         self.installationState = installationState
 
-        self.launchProfile = .init(containerURL: containerURL ?? Wine.containerURLs.first)
+        self.launchProfile = .init(
+            container: containerURL.map(ContainerReference.init(url:))
+                ?? Wine.containerURLs.first.map(ContainerReference.init(url:))
+        )
     }
 
     required init(from decoder: Decoder) throws {
@@ -127,7 +132,10 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         let legacyLaunchArguments = try legacyContainer.decodeIfPresent([String].self, forKey: .launchArguments)
 
         self.launchProfile = try container.decodeIfPresent(LaunchProfile.self, forKey: .launchProfile)
-            ?? .init(containerURL: legacyContainerURL, launchArguments: legacyLaunchArguments ?? [])
+            ?? .init(
+                container: legacyContainerURL.map(ContainerReference.init(url:)),
+                launchArguments: legacyLaunchArguments ?? []
+            )
         self.isFavourited = try container.decode(Bool.self, forKey: .isFavourited)
         self.lastLaunched = try container.decodeIfPresent(Date.self, forKey: .lastLaunched)
     }
@@ -306,7 +314,7 @@ extension Game: Mergeable {
         .init(\Game._verticalImageURL, forCodingKey: ._verticalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game._horizontalImageURL, forCodingKey: ._horizontalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game.launchProfile, forCodingKey: .launchProfile, strategy: { current, new in
-            .init(containerURL: current.containerURL ?? new.containerURL,
+            .init(container: current.container ?? new.container,
                   runtimeID: current.runtimeID,
                   launchArguments: Array(Set(current.launchArguments + new.launchArguments)))
         }),
