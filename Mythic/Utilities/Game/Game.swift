@@ -17,11 +17,37 @@ import AppKit
 /// introduced separately as Kraken's launcher architecture evolves.
 struct LaunchProfile: Codable, Equatable, Sendable {
     var containerURL: URL?
+    var runtimeID: RuntimeID
     var launchArguments: [String]
 
-    init(containerURL: URL? = nil, launchArguments: [String] = []) {
+    init(
+        containerURL: URL? = nil,
+        runtimeID: RuntimeID = Runtime.current.id,
+        launchArguments: [String] = []
+    ) {
         self.containerURL = containerURL
+        self.runtimeID = runtimeID
         self.launchArguments = launchArguments
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case containerURL
+        case runtimeID
+        case launchArguments
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.containerURL = try container.decodeIfPresent(URL.self, forKey: .containerURL)
+        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? Runtime.current.id
+        self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(containerURL, forKey: .containerURL)
+        try container.encode(runtimeID, forKey: .runtimeID)
+        try container.encode(launchArguments, forKey: .launchArguments)
     }
 }
 
@@ -281,6 +307,7 @@ extension Game: Mergeable {
         .init(\Game._horizontalImageURL, forCodingKey: ._horizontalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game.launchProfile, forCodingKey: .launchProfile, strategy: { current, new in
             .init(containerURL: current.containerURL ?? new.containerURL,
+                  runtimeID: current.runtimeID,
                   launchArguments: Array(Set(current.launchArguments + new.launchArguments)))
         }),
         .init(\Game.isFavourited, forCodingKey: .isFavourited, strategy: { $0 || $1 }),
