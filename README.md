@@ -1,7 +1,10 @@
-<h1 align="center">
-  Kraken
-  [![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white)](https://conventionalcommits.org)
-</h1>
+<h1 align="center">Kraken</h1>
+
+<p align="center">
+  <a href="https://conventionalcommits.org">
+    <img src="https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&logoColor=white" alt="Conventional Commits">
+  </a>
+</p>
 
 <div align="center">
   <h3>An open-source macOS game launcher for running Windows games and managing games from multiple sources.</h3>
