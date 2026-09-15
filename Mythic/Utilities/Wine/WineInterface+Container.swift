@@ -26,13 +26,20 @@ extension Wine {
         }
 
         /// Initialise a new container, checking if a container at the given URL already exists.
-        init(name: String, url: URL, id: UUID = .init(), settings: Container.Settings) {
+        init(
+            name: String,
+            url: URL,
+            id: UUID = .init(),
+            settings: Container.Settings,
+            runtimeID: RuntimeID = .mythicEngine
+        ) {
             let existingContainer = try? Container(knownURL: url)
 
             self.name = existingContainer?.name ?? name
             self.url = url
             self.id = existingContainer?.id ?? id
             self.settings = existingContainer?.settings ?? settings
+            self.runtimeID = existingContainer?.runtimeID ?? runtimeID
 
             saveProperties()
         }
@@ -50,6 +57,7 @@ extension Wine {
             self.url = knownURL
             self.id = object.id
             self.settings = object.settings
+            self.runtimeID = object.runtimeID
         }
 
         /// Synthesize a container object from a URL.
@@ -61,6 +69,9 @@ extension Wine {
         var url: URL
         var id: UUID
         var settings: Container.Settings { didSet { saveProperties() } }
+        /// Runtime that owns and is expected to execute this prefix.
+        /// Existing Engine 2 containers decode as `.mythicEngine` for backwards compatibility.
+        var runtimeID: RuntimeID { didSet { saveProperties() } }
 
         var propertiesFile: URL { url.appending(path: "Properties.plist") }
     }
@@ -85,6 +96,17 @@ extension Wine.Container: Codable {
         case url
         case id
         case settings
+        case runtimeID
+    }
+
+    required init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        self.name = try container.decode(String.self, forKey: .name)
+        self.url = try container.decode(URL.self, forKey: .url)
+        self.id = try container.decode(UUID.self, forKey: .id)
+        self.settings = try container.decode(Container.Settings.self, forKey: .settings)
+        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
     }
 }
 
