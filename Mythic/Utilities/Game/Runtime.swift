@@ -220,6 +220,22 @@ extension Wine {
         }
 
         let url = baseURL.appending(path: name)
+        let targetAlreadyExisted = FileManager.default.fileExists(atPath: url.path)
+
+        if targetAlreadyExisted {
+            if containerExists(at: url) {
+                log.notice("Container already exists at \(url.prettyPath)")
+                let container = try Container(knownURL: url)
+                guard container.runtimeID == runtimeID else {
+                    throw RuntimeContainerMismatchError(expected: runtimeID, actual: container.runtimeID)
+                }
+                containerURLs.insert(url)
+                return container
+            }
+
+            throw Container.AlreadyExistsError()
+        }
+
         try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
 
         defer {
@@ -233,16 +249,6 @@ extension Wine {
         }
 
         do {
-            if containerExists(at: url) {
-                log.notice("Container already exists at \(url.prettyPath)")
-                let container = try Container(knownURL: url)
-                guard container.runtimeID == runtimeID else {
-                    throw RuntimeContainerMismatchError(expected: runtimeID, actual: container.runtimeID)
-                }
-                containerURLs.insert(url)
-                return container
-            }
-
             let newContainer = Container(name: name, url: url, settings: settings, runtimeID: runtimeID)
             let result = try await boot(at: url, runtimeID: runtimeID, parameters: .prefixInit)
 
@@ -251,6 +257,7 @@ extension Wine {
             }
 
             containerURLs.insert(url)
+
             try await toggleRetinaMode(containerURL: url, toggle: settings.retinaMode, runtimeID: runtimeID)
             try await setWindowsVersion(containerURL: url, version: settings.windowsVersion, runtimeID: runtimeID)
             try await setDisplayScaling(containerURL: url, dpi: settings.scaling, runtimeID: runtimeID)
@@ -258,6 +265,9 @@ extension Wine {
             log.info("\(formatLog(containerURL: url, description: "Created \(runtimeID.rawValue) container"))")
             return newContainer
         } catch {
+            containerURLs.remove(url)
+            try? FileManager.default.removeItem(at: url)
+
             log.error("\(formatLog(containerURL: url, description: "Unable to create container", error: error))")
             throw error
         }
