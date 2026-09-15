@@ -21,6 +21,22 @@ import FirebaseCrashlytics
 // TODO: modularise
 class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_: Notification) {
+#if DEBUG
+        if CommandLine.arguments.contains("--install-wine11-runtime") {
+            Task { @MainActor in
+                do {
+                    try await Engine.installWine11Runtime()
+                    fputs("Wine 11 runtime installation succeeded.\n", stdout)
+                    NSApp.terminate(nil)
+                } catch {
+                    fputs("Wine 11 runtime installation failed: \(error.localizedDescription)\n", stderr)
+                    NSApp.terminate(nil)
+                }
+            }
+            return
+        }
+#endif
+
         // MARK: Firebase Configuration
         // Use the Firebase library to configure APIs.
         FirebaseApp.configure()
