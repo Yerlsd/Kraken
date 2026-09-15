@@ -41,7 +41,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.container = try container.decodeIfPresent(ContainerReference.self, forKey: .container)
             ?? container.decodeIfPresent(URL.self, forKey: .containerURL).map(ContainerReference.init(url:))
-        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? Runtime.current.id
+        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
         self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
     }
 
@@ -126,6 +126,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         self.launchProfile = try container.decodeIfPresent(LaunchProfile.self, forKey: .launchProfile)
             ?? .init(
                 container: legacyContainerURL.map(ContainerReference.init(url:)),
+                runtimeID: .mythicEngine,
                 launchArguments: legacyLaunchArguments ?? []
             )
         self.isFavourited = try container.decode(Bool.self, forKey: .isFavourited)
