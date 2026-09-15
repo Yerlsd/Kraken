@@ -15,6 +15,7 @@ struct ContainerCreationView: View {
 
     @State private var containerName: String = "My Container"
     @State private var containerURL: URL = Wine.containersDirectory!
+    @State private var runtimeID: RuntimeID = Runtime.current.id
 
     @State private var isContainerURLFileImporterPresented: Bool = false
 
@@ -32,7 +33,15 @@ struct ContainerCreationView: View {
 
             Form {
                 TextField("Choose a name for your container:", text: $containerName)
-                
+
+                Picker("Runtime", selection: $runtimeID) {
+                    ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
+                        Text(runtime.name)
+                            .tag(runtime.id)
+                    }
+                }
+                .disabled(isBooting)
+
                 HStack {
                     VStack(alignment: .leading) {
                         Text("Where do you want the container's base path to be located?")
@@ -93,7 +102,11 @@ struct ContainerCreationView: View {
                     Task(priority: .userInitiated) {
                         withAnimation { isBooting = true }
                         do {
-                            _ = try await Wine.createContainer(baseURL: containerURL, name: containerName)
+                            _ = try await Wine.createContainer(
+                                baseURL: containerURL,
+                                name: containerName,
+                                runtimeID: runtimeID
+                            )
                             withAnimation { isBooting = false }
                             isPresented = false
                         } catch {
@@ -106,6 +119,7 @@ struct ContainerCreationView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(isBooting)
                 .disabled(!FileLocations.isWritableFolder(url: containerURL))
+                .disabled(!Engine.isRuntimeInstalled(runtimeID))
                 .disabled((Wine.containerURLs.first(where: { $0.lastPathComponent == containerName}) != nil))
             }
             .padding()
