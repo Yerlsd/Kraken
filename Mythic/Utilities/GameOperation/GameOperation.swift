@@ -183,13 +183,34 @@ extension GameOperation.ActiveOperationType: CustomStringConvertible {
 
         // polling task to update KVO-incompatible variables
         Task { @MainActor [weak self] in
-            while let self = self {
-                lock.withLock({ self.throughput = self._progress.throughput })
-                lock.withLock({ self.estimatedTimeRemaining = self._progress.estimatedTimeRemaining })
-                lock.withLock({ self.fileTotalCount = self._progress.fileTotalCount })
-                lock.withLock({ self.fileCompletedCount = self._progress.fileCompletedCount })
+            while !Task.isCancelled {
+                guard let self else {
+                    return
+                }
 
-                try await Task.sleep(for: .milliseconds(500))
+                lock.withLock({
+                    self.throughput = self._progress.throughput
+                })
+
+                lock.withLock({
+                    self.estimatedTimeRemaining =
+                        self._progress.estimatedTimeRemaining
+                })
+
+                lock.withLock({
+                    self.fileTotalCount = self._progress.fileTotalCount
+                })
+
+                lock.withLock({
+                    self.fileCompletedCount =
+                        self._progress.fileCompletedCount
+                })
+
+                do {
+                    try await Task.sleep(for: .milliseconds(500))
+                } catch {
+                    return
+                }
             }
         }
     }

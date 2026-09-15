@@ -56,17 +56,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "installBaseURL": Bundle.appGames!
         ])
 
-        Task {
+        Task(priority: .utility) {
+            await Migrator.fullMigration()
             try? await GameDataStore.shared.refreshFromStorefronts()
         }
 
-        Migrator.fullMigration()
-
         // MARK: Start metadata update cycle for Legendary
         Task(priority: .utility) {
-            while true {
+            while !Task.isCancelled {
                 await Legendary.updateMetadata()
-                try? await Task.sleep(for: .seconds(5 * 60))
+
+                do {
+                    try await Task.sleep(for: .seconds(5 * 60))
+                } catch {
+                    break
+                }
             }
         }
 
