@@ -237,7 +237,7 @@ struct ContainerSettingsView: View {
                 This container (\(selectedContainerURL.prettyPath)) exists on disk,
                 but the settings are inaccessible or corrupted.
                 If this persists, please delete this container and create a new one.
-                """)
+                """))
         } else {
             ContentUnavailableView(
                 "Unable to locate container.",
@@ -246,7 +246,7 @@ struct ContainerSettingsView: View {
                 The container URL provided is invalid.
                 If this container is not stored on an external device,
                 Please remove it from Kraken.
-                """)
+                """))
         }
     }
 }
