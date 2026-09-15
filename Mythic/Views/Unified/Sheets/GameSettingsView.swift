@@ -236,9 +236,21 @@ struct GameSettingsView: View {
 
                         // MARK: - Container Settings Section
                         if case .installed(_, let platform) = game.installationState, case .windows = platform {
-                            Section("Container Settings", isExpanded: $isContainerSectionExpanded) {
-                                ContainerSettingsView(selectedContainerURL: $game.containerURL,
-                                                      withPicker: true)
+                            Section("Runtime & Container", isExpanded: $isContainerSectionExpanded) {
+                                Picker("Runtime", selection: runtimeSelection) {
+                                    ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
+                                        Text(runtime.name)
+                                            .tag(runtime.id)
+                                            .disabled(!Engine.isRuntimeInstalled(runtime.id)
+                                                      || !Wine.containerObjects.contains(where: { $0.runtimeID == runtime.id }))
+                                    }
+                                }
+
+                                ContainerSettingsView(
+                                    selectedContainerURL: $game.containerURL,
+                                    withPicker: true,
+                                    selectedRuntimeID: game.launchProfile.runtimeID
+                                )
                             }
                         }
                     }
@@ -253,6 +265,22 @@ struct GameSettingsView: View {
 }
 
 private extension GameSettingsView {
+    var runtimeSelection: Binding<RuntimeID> {
+        Binding(
+            get: { game.launchProfile.runtimeID },
+            set: { newRuntimeID in
+                guard newRuntimeID != game.launchProfile.runtimeID,
+                      Engine.isRuntimeInstalled(newRuntimeID),
+                      let container = Wine.containerObjects.first(where: { $0.runtimeID == newRuntimeID }) else {
+                    return
+                }
+
+                game.launchProfile.runtimeID = newRuntimeID
+                game.containerURL = container.url
+            }
+        )
+    }
+
     func submitLaunchArgument() {
         let cleanedArgument = typingArgument
             .trimmingCharacters(in: .illegalCharacters)
