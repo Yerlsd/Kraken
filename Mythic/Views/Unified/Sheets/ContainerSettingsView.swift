@@ -99,8 +99,14 @@ struct ContainerSettingsView: View {
                 HStack {
                     Text("Runtime")
                     Spacer()
-                    Text(Runtime(id: container.runtimeID, name: container.runtimeID == .wine11 ? "Wine 11" : "Mythic Engine").name)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(Runtime(id: container.runtimeID, name: container.runtimeID == .wine11 ? "Wine 11" : "Mythic Engine").name)
+                            .foregroundStyle(.secondary)
+
+                        Text(container.runtimeID == .wine11 ? "Engine 3 · NEW" : "Engine 2 · Legacy")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
                 Toggle("Performance HUD", isOn: Binding(

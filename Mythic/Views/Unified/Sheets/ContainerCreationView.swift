@@ -36,8 +36,13 @@ struct ContainerCreationView: View {
 
                 Picker("Runtime", selection: $runtimeID) {
                     ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
-                        Text(runtime.name)
-                            .tag(runtime.id)
+                        HStack(spacing: 6) {
+                            Text(runtime.name)
+                            Text(runtime.id == .wine11 ? "Engine 3 · NEW" : "Engine 2 · Legacy")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .tag(runtime.id)
                     }
                 }
                 .disabled(isBooting)
