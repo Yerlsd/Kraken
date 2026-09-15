@@ -502,7 +502,7 @@ final class WineRuntimeInstaller {
 
         let stagingDirectory = try fileManager.url(
             for: .itemReplacementDirectory,
-            in: parentDirectory,
+            in: .userDomainMask,
             appropriateFor: parentDirectory,
             create: true
         )
