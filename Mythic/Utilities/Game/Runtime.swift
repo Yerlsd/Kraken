@@ -77,6 +77,19 @@ extension Engine {
     static func isRuntimeInstalled(_ runtimeID: RuntimeID) -> Bool {
         FileManager.default.fileExists(atPath: wineRuntime(for: runtimeID).wineExecutable.path)
     }
+
+    struct RuntimeNotInstalledError: LocalizedError {
+        let runtimeID: RuntimeID
+
+        var errorDescription: String? {
+            switch runtimeID {
+            case .mythicEngine:
+                return String(localized: "Mythic Engine is not installed.")
+            case .wine11:
+                return String(localized: "Wine 11 runtime is not installed.")
+            }
+        }
+    }
 }
 
 extension Wine {
@@ -89,7 +102,11 @@ extension Wine {
         _ process: Process,
         containerURL: URL,
         runtimeID: RuntimeID
-    ) {
+    ) throws {
+        guard Engine.isRuntimeInstalled(runtimeID) else {
+            throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
+        }
+
         let runtime = Engine.wineRuntime(for: runtimeID)
         process.executableURL = runtime.wineExecutable
 
