@@ -27,7 +27,7 @@ struct GameListView: View {
                     systemImage: "folder.badge.questionmark",
                     description: Text("""
                         Games in your library will appear here.
-                        If there are games in your library and they're not appearing, try restarting Mythic.
+                        If there are games in your library and they're not appearing, try restarting Kraken.
                         """)
                 )
                 .task {

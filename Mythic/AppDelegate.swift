@@ -1,6 +1,6 @@
 //
 //  AppDelegate.swift
-//  Mythic
+//  Kraken
 //
 //  Created by vapidinfinity (esi) on 25/2/2024.
 //

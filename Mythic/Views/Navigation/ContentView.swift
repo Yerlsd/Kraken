@@ -85,7 +85,7 @@ struct ContentView: View {
                     if let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
                        let bundleVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
                        let mythicVersion: SemanticVersion = .init("\(shortVersion)+\(bundleVersion)") {
-                        Text("Mythic \(mythicVersion.prettyString)")
+                        Text("Kraken \(mythicVersion.prettyString)")
                     }
                     
                     if let engineVersion {
@@ -121,7 +121,7 @@ struct ContentView: View {
                 if !networkMonitor.isConnected {
                     Image(systemName: "network")
                         .symbolVariant(.slash)
-                        .help("Mythic is not connected to the internet.")
+                        .help("Kraken is not connected to the internet.")
                 }
             }
         }

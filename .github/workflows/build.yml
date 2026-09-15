@@ -1,9 +1,9 @@
-name: Build Mythic
+name: Build Kraken
 on:
   push:
     paths: &workflow_paths
       - '.github/workflows/build.yml'
-      - 'Mythic.xcodeproj/**'
+      - 'Kraken.xcodeproj/**'
       - 'Mythic/**'
   pull_request:
     paths: *workflow_paths
@@ -26,7 +26,7 @@ jobs:
         restore-keys: xcode-cache-deriveddata-${{ github.workflow }}-
         
     - run: |
-        xcodebuild -scheme Mythic \
+        xcodebuild -scheme Kraken \
           CODE_SIGNING_ALLOWED=NO \
           SWIFTLINT=NO \
           -parallel-testing-enabled YES \

@@ -179,11 +179,11 @@ struct OnboardingView: View {
             )
         }
         .foregroundStyle(.white)
-        .navigationTitle("Mythic Setup")
+        .navigationTitle("Kraken Setup")
         .task(priority: .background) {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
-                presence.details = "Getting Mythic set up"
+                presence.details = "Getting Kraken set up"
                 presence.state = "Onboarding"
                 presence.timestamps.start = .now
                 presence.assets.largeImage = "macos_512x512_2x"
@@ -197,7 +197,7 @@ struct OnboardingView: View {
 private extension OnboardingView {
     struct WelcomeStage: View {
         var body: some View {
-            Text("Welcome to Mythic.")
+            Text("Welcome to Kraken.")
                 .font(.title)
                 .bold()
         }
@@ -361,7 +361,7 @@ private extension OnboardingView {
                 .font(.title)
                 .bold()
 
-            Text("Mythic is now ready for use.")
+            Text("Kraken is now ready for use.")
         }
     }
 }

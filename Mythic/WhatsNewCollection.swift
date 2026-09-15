@@ -1,6 +1,6 @@
 //
 //  WhatsNewCollection.swift
-//  Mythic
+//  Kraken
 //
 //  Created by vapidinfinity (esi) on 11/9/24.
 //
@@ -14,7 +14,7 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
     var whatsNewCollection: WhatsNewCollection {
         WhatsNew(
             version: "0.4.1",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(
@@ -44,13 +44,13 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.1"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.4.1"))
             )
         )
 
         WhatsNew(
             version: "0.4.2",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(
@@ -80,13 +80,13 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.2"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.4.2"))
             )
         )
 
         WhatsNew(
             version: "0.4.3",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(
@@ -109,20 +109,20 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                         systemName: "person.badge.shield.checkmark",
                         foregroundColor: .accentColor
                     ),
-                    title: "Sign in to Epic Games within Mythic",
-                    subtitle: "You no longer need to sign in to Epic separately from Mythic."
+                    title: "Sign in to Epic Games within Kraken",
+                    subtitle: "You no longer need to sign in to Epic separately from Kraken."
                 )
             ],
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.3"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.4.3"))
             )
         )
 
         WhatsNew(
             version: "0.4.4",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(
@@ -154,19 +154,19 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                         foregroundColor: .teal
                     ),
                     title: "Improved game compatibility",
-                    subtitle: "DXVK and AVX2 are now integrated into Mythic."
+                    subtitle: "DXVK and AVX2 are now integrated into Kraken."
                 )
             ],
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.4"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.4.4"))
             )
         )
 
         WhatsNew(
             version: "0.4.5",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(
@@ -190,7 +190,7 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                         foregroundColor: .purple
                     ),
                     title: "Immediate game library population",
-                    subtitle: "Mythic's game library will now immediately populate upon signing in."
+                    subtitle: "Kraken's game library will now immediately populate upon signing in."
                 ),
                 .init(
                     image: .init(image: {
@@ -199,19 +199,19 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                             .scaledToFit()
                     }),
                     title: "Stay tuned! 👀",
-                    subtitle: "Something's coming to Mythic."
+                    subtitle: "Something's coming to Kraken."
                 )
             ],
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.4.5"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.4.5"))
             )
         )
 
         WhatsNew(
             version: "0.5.0",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
                     image: .init(systemName: "ladybug"),
@@ -221,7 +221,7 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                 .init(
                     image: .init(systemName: "macwindow"),
                     title: "Brand New Interface",
-                    subtitle: "Mythic now uses Apple's new 'Liquid Glass' design language (and looks amazing doing it!)"
+                    subtitle: "Kraken now uses Apple's new 'Liquid Glass' design language (and looks amazing doing it!)"
                 ),
                 .init(
                     image: .init(systemName: "figure.wave"),
@@ -242,47 +242,44 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.5.0"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.5.0"))
             )
         )
         
         WhatsNew(
             version: "0.6.0",
-            title: "What's new in Mythic",
+            title: "What's new in Kraken",
             features: [
                 .init(
-                    image: .init(systemName: "ladybug.slash"),
-                    title: "Major bug fixes and performance improvements",
-                    subtitle: """
-                        Mythic has undergone a complete logical rewrite to address long-standing critical bugs and issues.
-                        This update brings better performance, lower resource usage, and better error handling, providing the foundation for Mythic's full release.
-                        """
+                    image: .init(systemName: "arrow.triangle.branch"),
+                    title: "Kraken is becoming its own launcher",
+                    subtitle: "Kraken is now being developed as its own open-source macOS game launcher, while preserving the existing Mythic Engine as its current runtime."
                 ),
                 .init(
-                    image: .init(systemName: "progress.indicator"),
-                    title: "Redesigned Downloads (now Operations) view",
-                    subtitle: "\"it looks so good i can't even lie someone hire me\" — vapidinfinity, the developer"
+                    image: .init(systemName: "slider.horizontal.3"),
+                    title: "New Launch Profile architecture",
+                    subtitle: "Games now have a dedicated launch profile for their container, runtime, and launch arguments, creating the foundation for more flexible per-game configuration."
                 ),
                 .init(
-                    image: .init(systemName: "list.bullet.below.rectangle"),
-                    title: "Redesigned list library view",
-                    subtitle: "\"dude im on a roll this is fire\" — vapidinfinity, the developer"
+                    image: .init(systemName: "square.stack.3d.up"),
+                    title: "Runtime abstraction",
+                    subtitle: "Kraken now has a runtime abstraction, with Mythic Engine represented as the first supported runtime."
                 ),
                 .init(
-                    image: .init(systemName: "app.badge.checkmark"),
-                    title: "View operation progress directly from the dock",
-                    subtitle: "Yup. View your game operation's progress, without even having to open Mythic."
+                    image: .init(systemName: "shippingbox"),
+                    title: "Container reference architecture",
+                    subtitle: "Game launch profiles can now reference Wine containers cleanly without replacing the existing container management system."
                 ),
                 .init(
-                    image: .init(systemName: "questionmark"),
-                    title: "wait. i'm goated?",
-                    subtitle: "you should donate if you love Mythic. Find the donation link in \"Help\" on your Mac's menu bar."
-                )
+                    image: .init(systemName: "checkmark.shield"),
+                    title: "Swift 6 concurrency improvements",
+                    subtitle: "Game lifecycle and background update paths have been tightened up for Swift 6, including a fix for the Sparkle background updater's executor handling."
+                ),
             ],
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/KrakenApp/Mythic/releases/tag/v0.6.0"))
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken"))
             )
         )
         

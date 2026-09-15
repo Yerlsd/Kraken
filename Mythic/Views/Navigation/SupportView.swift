@@ -49,7 +49,7 @@ struct SupportView: View {
                 .frame(maxWidth: 400, alignment: .leading)
             HStack{
                 Button("Report an issue"){
-                    openLink(urlString: "https://github.com/MythicApp/Mythic/issues")
+                    openLink(urlString: "https://github.com/Yerlsd/Kraken/issues")
                 }
                 verticalDivider(height: 30)
                 Button("Create a support ticket"){

@@ -197,7 +197,7 @@ private struct EpicInterceptorWebView: NSViewRepresentable {
                     if errorCode == "errors.com.epicgames.oauth.corrective_action_required" {
                         error = String(localized: """
                             Please visit https://www.epicgames.com/id/login/correction on a normal web browser,
-                            and then try signing in through Mythic again.
+                            and then try signing in through Kraken again.
                             """)
                     }
                     

@@ -1,6 +1,6 @@
 //
-//  MythicApp.swift
-//  Mythic
+//  KrakenApp.swift
+//  Kraken
 //
 //  Created by vapidinfinity (esi) on 9/9/2023.
 //
@@ -98,13 +98,13 @@ struct KrakenApp: App {
                 }
                 
                 Section("More") {
-                    Link("GitHub repository", destination: URL(string: "https://github.com/MythicApp/Mythic")!)
+                    Link("GitHub repository", destination: URL(string: "https://github.com/Yerlsd/Kraken")!)
                     Link("Website", destination: URL(string: "https://getmythic.app/")!)
                 }
             }
         }
 
-        Window("About Mythic", id: "about") {
+        Window("About Kraken", id: "about") {
             AboutView()
                 .frame(width: 285, height: 400)
                 .onAppear {
