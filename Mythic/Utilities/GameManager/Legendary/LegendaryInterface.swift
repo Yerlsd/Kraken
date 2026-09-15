@@ -545,11 +545,36 @@ final class Legendary {
             case .macOS:
                 do {} // no environment variables need to be assembled.
             case .windows:
+                let runtimeID = game.launchProfile.runtimeID
+                let container = try Wine.getContainerObject(at: containerURL)
+
+                guard container.runtimeID == runtimeID else {
+                    throw CocoaError(.coderInvalidValue, userInfo: [
+                        NSLocalizedDescriptionKey: "The selected runtime does not match the runtime that owns this container."
+                    ])
+                }
+
+                guard Engine.isRuntimeInstalled(runtimeID) else {
+                    throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
+                }
+
                 environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: containerURL)
                 // legendary requires this, since it calls wine directly.
                 environment["WINEPREFIX"] = containerURL.path(percentEncoded: false)
 
-                arguments += ["--wine", Engine.wineExecutableURL.path]
+                let runtime = Engine.wineRuntime(for: runtimeID)
+                arguments += ["--wine", runtime.wineExecutable.path]
+
+                if runtimeID == .wine11 {
+                    environment["WINESERVER"] = runtime.wineserverExecutable.path
+                    environment["WINELOADER"] = runtime.wineExecutable.path
+                    environment["WINE"] = runtime.wineExecutable.path
+                    environment["WINE64"] = runtime.wineExecutable.path
+
+                    if let bundleURL = runtime.wineBundleURL {
+                        environment["WINE_APP_BUNDLE"] = bundleURL.path
+                    }
+                }
             }
 
             arguments.append(contentsOf: game.launchArguments.map({ "'\($0)'" }))
