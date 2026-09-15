@@ -18,17 +18,17 @@ final class Migrator {
     private static let log: Logger = .custom(category: "Migrator")
     private static let containerQueue = DispatchQueue(label: "containerMigration")
 
-    static func fullMigration() {
-        v0_1_0.migrate()
-        v0_3_2.migrate()
-        v0_5_0.migrate()
+    static func fullMigration() async {
+        await v0_1_0.migrate()
+        await v0_3_2.migrate()
+        await v0_5_0.migrate()
     }
 
     struct v0_1_0 { // swiftlint:disable:this type_name
         private init() {}
 
-        static func migrate() {
-            Task(operation: { Migrator.v0_1_0.migrateFromAllBottlesFormat() })
+        static func migrate() async {
+            Migrator.v0_1_0.migrateFromAllBottlesFormat()
         }
 
         /// Migrate redundant bottle format.
@@ -79,10 +79,10 @@ final class Migrator {
     struct v0_3_2 { // swiftlint:disable:this type_name
         private init() {}
 
-        static func migrate() {
-            Task(operation: { Migrator.v0_3_2.migrateBottleSchemeToContainerSchemeIfNecessary() })
-            Task(operation: { await Migrator.v0_3_2.updateContainerScalingIfNecessary() })
-            Task(operation: { Migrator.v0_3_2.migrateEpicFolderNaming() })
+        static func migrate() async {
+            Migrator.v0_3_2.migrateBottleSchemeToContainerSchemeIfNecessary()
+            await Migrator.v0_3_2.updateContainerScalingIfNecessary()
+            Migrator.v0_3_2.migrateEpicFolderNaming()
         }
 
         /// Migrate Bottle → Container naming scheme.
@@ -194,13 +194,13 @@ final class Migrator {
     struct v0_5_0 { // swiftlint:disable:this type_name
         private init() {}
 
-        static func migrate() {
-            Task(operation: { await Migrator.v0_5_0.migrateFavouriteGames() })
-            Task(operation: { await Migrator.v0_5_0.migrateLocalGamesLibrary() })
-            Task(operation: { await Migrator.v0_5_0.migrateContainerURLs() })
-            Task(operation: { await Migrator.v0_5_0.migrateLaunchArguments() })
-            Task(operation: { await Migrator.v0_5_0.migrateImageURLs() })
-            Task(operation: { await Migrator.v0_5_0.migrateWideImageURLs() })
+        static func migrate() async {
+            await Migrator.v0_5_0.migrateFavouriteGames()
+            await Migrator.v0_5_0.migrateLocalGamesLibrary()
+            await Migrator.v0_5_0.migrateContainerURLs()
+            await Migrator.v0_5_0.migrateLaunchArguments()
+            await Migrator.v0_5_0.migrateImageURLs()
+            await Migrator.v0_5_0.migrateWideImageURLs()
         }
 
         // TODO: Migrate localGamesLibrary

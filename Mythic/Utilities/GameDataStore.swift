@@ -9,6 +9,7 @@
 
 import Foundation
 import Combine
+import Observation
 import OSLog
 
 // TODO: eventually, migrate to SwiftData.
@@ -18,11 +19,17 @@ import OSLog
     
     private let gamesObserver: CodableUserDefaultsObserver<[AnyGame]>
     private var isUpdatingFromObserver = false
+
+    @ObservationIgnored
+    private var observedGameObjects: Set<ObjectIdentifier> = []
     
     var library: Set<Game> = .init() {
         didSet {
+            reconcileGameObservers()
+
             guard !isUpdatingFromObserver else { return }
-            try? UserDefaults.standard.encodeAndSet(library.map({ AnyGame($0) }), forKey: "games")
+
+            persistLibrary()
         }
     }
 
@@ -33,7 +40,9 @@ import OSLog
         
         // load library on initialisation
         library = Set(gamesObserver.value.map({ $0.base }))
-        
+
+        reconcileGameObservers()
+
         // observe external changes
         gamesObserver.$value
             .sink { [weak self] newGames in
@@ -52,6 +61,63 @@ import OSLog
     
     @ObservationIgnored
     private var cancellables: Set<AnyCancellable> = .init()
+
+    private func persistLibrary() {
+        do {
+            try UserDefaults.standard.encodeAndSet(
+                library.map({ AnyGame($0) }),
+                forKey: "games"
+            )
+        } catch {
+            log.error(
+                "Unable to persist game library: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func reconcileGameObservers() {
+        let currentIDs = Set(library.map(ObjectIdentifier.init))
+
+        observedGameObjects.formIntersection(currentIDs)
+
+        for game in library {
+            let objectID = ObjectIdentifier(game)
+
+            guard !observedGameObjects.contains(objectID) else {
+                continue
+            }
+
+            observedGameObjects.insert(objectID)
+            observeGameChanges(for: game)
+        }
+    }
+
+    private func observeGameChanges(for game: Game) {
+        let gameID = game.id
+
+        withObservationTracking {
+            _ = game.title
+            _ = game.installationState
+            _ = game.launchProfile
+            _ = game.isFavourited
+            _ = game.lastLaunched
+            _ = game._verticalImageURL
+            _ = game._horizontalImageURL
+        } onChange: { [weak self] in
+            Task { @MainActor in
+                guard let self else {
+                    return
+                }
+
+                guard let game = self.library.first(where: { $0.id == gameID }) else {
+                    return
+                }
+
+                self.persistLibrary()
+                self.observeGameChanges(for: game)
+            }
+        }
+    }
 
     var recent: Game? {
         guard !library.allSatisfy({ $0.lastLaunched == nil }) else { return nil }

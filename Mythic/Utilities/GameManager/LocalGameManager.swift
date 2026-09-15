@@ -56,54 +56,127 @@ class LocalGameManager {
             case .macOS:
                 let configuration: NSWorkspace.OpenConfiguration = .init()
                 configuration.arguments = game.launchArguments
-                
-                if (try? location.resourceValues(forKeys: [.contentTypeKey]).contentType)?.conforms(to: .bundle) == true {
-                    let application = try await NSWorkspace.shared.openApplication(at: location, configuration: configuration)
-                    
-                    // await application closure
-                    await withTaskCancellationHandler {
-                        await withCheckedContinuation { continuation in
-                            NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didTerminateApplicationNotification,
-                                                                              object: nil,
-                                                                              queue: .main) { notification in
-                                if let observedApplication = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
-                                   observedApplication == application {
-                                    continuation.resume()
-                                }
-                            }
-                        }
-                    } onCancel: {
-                        application.terminate()
-                    }
-                } else {
+
+                guard (try? location.resourceValues(forKeys: [.contentTypeKey]).contentType)?
+                    .conforms(to: .bundle) == true else {
                     throw CocoaError(.serviceApplicationLaunchFailed)
                 }
+
+                let application = try await NSWorkspace.shared.openApplication(
+                    at: location,
+                    configuration: configuration
+                )
+
+                if UserDefaults.standard.bool(forKey: "minimiseOnGameLaunch") {
+                    await MainActor.run {
+                        NSApp.windows.first?.miniaturize(nil)
+                    }
+                }
+
+                try await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        var observer: NSObjectProtocol?
+                        observer = NSWorkspace.shared.notificationCenter.addObserver(
+                            forName: NSWorkspace.didTerminateApplicationNotification,
+                            object: nil,
+                            queue: .main
+                        ) { notification in
+                            guard
+                                let observedApplication = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication,
+                                observedApplication == application
+                            else {
+                                return
+                            }
+
+                            if let observer {
+                                NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                            }
+                            continuation.resume()
+                        }
+
+                        if application.isTerminated {
+                            if let observer {
+                                NSWorkspace.shared.notificationCenter.removeObserver(observer)
+                            }
+                            continuation.resume()
+                        }
+                    }
+
+                    try Task.checkCancellation()
+                } onCancel: {
+                    application.terminate()
+                }
+
             case .windows:
-                guard let containerURL = game.containerURL else { throw Wine.Container.DoesNotExistError() }
+                guard let containerURL = game.containerURL else {
+                    throw Wine.Container.DoesNotExistError()
+                }
+
                 let container = try Wine.getContainerObject(at: containerURL)
                 let runtimeID = game.launchProfile.runtimeID
 
                 guard container.runtimeID == runtimeID else {
                     throw CocoaError(.coderInvalidValue, userInfo: [
-                        NSLocalizedDescriptionKey: "The selected runtime does not match the runtime that owns this container."
+                        NSLocalizedDescriptionKey:
+                            "The selected runtime does not match the runtime that owns this container."
                     ])
                 }
 
-                var environment: [String: String] = .init()
-                environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: container.url)
+                let environment = try Wine.assembleEnvironmentVariables(
+                    forContainerAtURL: container.url
+                )
 
                 if UserDefaults.standard.bool(forKey: "minimiseOnGameLaunch") {
-                    NSApp.windows.first?.miniaturize(nil)
+                    await MainActor.run {
+                        NSApp.windows.first?.miniaturize(nil)
+                    }
                 }
-                
-                let process: Process = .init()
+
+                let process = Process()
                 process.arguments = [location.path] + game.launchArguments
                 process.environment = environment
-                try Wine.transformProcess(process, containerURL: containerURL, runtimeID: runtimeID)
-                
+
+                try Wine.transformProcess(
+                    process,
+                    containerURL: containerURL,
+                    runtimeID: runtimeID
+                )
+
+                /*
+                 Process is an Objective-C reference type and Swift 6 requires
+                 values captured by the cancellation handler to satisfy
+                 Sendable. This wrapper deliberately confines the unchecked
+                 boundary to the Foundation Process object itself.
+                 */
+                final class ProcessBox: @unchecked Sendable {
+                    let value: Process
+
+                    init(_ value: Process) {
+                        self.value = value
+                    }
+                }
+
+                let processBox = ProcessBox(process)
+
                 try process.run()
-                
-                process.waitUntilExit()
+
+                try await withTaskCancellationHandler {
+                    await withCheckedContinuation { continuation in
+                        processBox.value.terminationHandler = { _ in
+                            continuation.resume()
+                        }
+
+                        if !processBox.value.isRunning {
+                            continuation.resume()
+                        }
+                    }
+
+                    try Task.checkCancellation()
+                } onCancel: {
+                    if processBox.value.isRunning {
+                        processBox.value.terminate()
+                    }
+                }
             }
         }
 

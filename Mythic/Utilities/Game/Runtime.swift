@@ -72,8 +72,36 @@ extension Engine {
 
     static func isRuntimeInstalled(_ runtimeID: RuntimeID) -> Bool {
         let runtime = wineRuntime(for: runtimeID)
-        return FileManager.default.fileExists(atPath: runtime.wineExecutable.path)
-            && FileManager.default.fileExists(atPath: runtime.wineserverExecutable.path)
+        let fileManager = FileManager.default
+
+        guard fileManager.fileExists(atPath: runtime.wineExecutable.path),
+              fileManager.fileExists(atPath: runtime.wineserverExecutable.path)
+        else {
+            return false
+        }
+
+        switch runtimeID {
+        case .mythicEngine:
+            return true
+
+        case .wine11:
+            guard let bundleURL = runtime.wineBundleURL else {
+                return false
+            }
+
+            let wineRoot =
+                bundleURL.appending(path: "Contents/Resources/wine")
+
+            let requiredPaths = [
+                wineRoot.appending(path: "bin/wineboot"),
+                wineRoot.appending(path: "lib/x86_64-unix/ntdll.so"),
+                wineRoot.appending(path: "lib/x86_64-windows/wined3d.dll")
+            ]
+
+            return requiredPaths.allSatisfy {
+                fileManager.fileExists(atPath: $0.path)
+            }
+        }
     }
 
     /// Install the first Engine 3 runtime without touching the existing Engine 2 installation.
@@ -104,8 +132,17 @@ extension Wine {
         process.arguments = ["--version"]
         process.executableURL = Engine.wineRuntime(for: runtimeID).wineExecutable
 
-        let result = try? process.runWrapped()
-        guard let standardOutput = result?.standardOutput,
+        guard let result = try? process.runWrapped() else {
+            return nil
+        }
+
+        do {
+            try process.checkTerminationStatus()
+        } catch {
+            return nil
+        }
+
+        guard let standardOutput = result.standardOutput,
               let match = try? Regex(#"wine-(\S+)"#).firstMatch(in: standardOutput),
               let extractedVersion = match.last?.substring else {
             return nil
@@ -164,7 +201,11 @@ extension Wine {
         try transformProcess(process, containerURL: containerURL, runtimeID: runtimeID)
 
         let commandResult = try await process.runWrapped()
-        guard let standardOutput = commandResult.standardOutput else { return list }
+        try process.checkTerminationStatus()
+
+        guard let standardOutput = commandResult.standardOutput else {
+            return list
+        }
 
         let major = retrieveVersion(for: runtimeID)?.major ?? 0
         let tasklistRegex: Regex<AnyRegexOutput>?
@@ -412,7 +453,10 @@ extension Wine {
             process.arguments = ["-k"]
             process.environment = ["WINEPREFIX": url.path]
             process.qualityOfService = .utility
+
             try process.run()
+            process.waitUntilExit()
+            try process.checkTerminationStatus()
         }
     }
 
@@ -427,9 +471,21 @@ extension Wine {
             throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
         }
 
-        let bundledWinetricksURL = Engine.directory.appending(path: "winetricks")
+        let bundledWinetricksURL: URL?
+
+        if runtimeID == .mythicEngine {
+            bundledWinetricksURL =
+                Engine.directory.appending(path: "winetricks")
+        } else {
+            bundledWinetricksURL = nil
+        }
+
         let winetricksURL: URL
-        if FileManager.default.fileExists(atPath: bundledWinetricksURL.path) {
+
+        if let bundledWinetricksURL,
+           FileManager.default.fileExists(
+               atPath: bundledWinetricksURL.path
+           ) {
             winetricksURL = bundledWinetricksURL
         } else {
             let possiblePaths = [
