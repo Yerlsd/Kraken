@@ -104,6 +104,7 @@ struct ContainerListView: View {
 struct WinetricksConfigurationView: View {
     @Binding var isPresented: Bool
     let containerURL: URL
+    let runtimeID: RuntimeID
     
     // Winetricks verb categories and options
     enum WinetricksCategory: String, CaseIterable, Identifiable {
@@ -461,7 +462,11 @@ struct WinetricksConfigurationView: View {
                         consoleOutput.append(">>> Installing \(verb)...")
                     }
                     
-                    try await Wine.runWinetricks(containerURL: containerURL, verb: verb) { output in
+                    try await Wine.runWinetricks(
+                            containerURL: containerURL,
+                            verb: verb,
+                            runtimeID: runtimeID
+                        ) { output in
                         Task { @MainActor in
                             consoleOutput.append(output)
                         }
@@ -537,7 +542,11 @@ struct ContainerConfigurationView: View {
                                 do {
                                     let process: Process = .init()
                                     process.arguments = [url.path]
-                                    Wine.transformProcess(process, containerURL: container.url)
+                                    try Wine.transformProcess(
+                                        process,
+                                        containerURL: container.url,
+                                        runtimeID: container.runtimeID
+                                    )
                                     
                                     try process.run()
                                     
@@ -567,18 +576,29 @@ struct ContainerConfigurationView: View {
                         isWinetricksConfigurationViewPresented = true
                     }
                     .sheet(isPresented: $isWinetricksConfigurationViewPresented) {
-                        WinetricksConfigurationView(isPresented: $isWinetricksConfigurationViewPresented, containerURL: container.url)
+                        WinetricksConfigurationView(
+                            isPresented: $isWinetricksConfigurationViewPresented,
+                            containerURL: container.url,
+                            runtimeID: container.runtimeID
+                        )
                     }
 
                     Button("Install/Uninstall...") {
                         Task {
                             let process: Process = .init()
                             process.arguments = ["uninstaller"]
-                            Wine.transformProcess(process, containerURL: container.url)
+                            try Wine.transformProcess(
+                                process,
+                                containerURL: container.url,
+                                runtimeID: container.runtimeID
+                            )
                             
                             try process.run()
                             
-                            while let isActive = try? await Wine.tasklist(for: containerURL).contains(where: { $0.imageName == "uninstaller.exe" }) {
+                            while let isActive = try? await Wine.tasklist(
+                                    for: containerURL,
+                                    runtimeID: container.runtimeID
+                                ).contains(where: { $0.imageName == "uninstaller.exe" }) {
                                 try await Task.sleep(for: .seconds(2))
                                 await MainActor.run { isUninstallerActive = isActive }
                             }
@@ -592,11 +612,18 @@ struct ContainerConfigurationView: View {
                         Task {
                             let process: Process = .init()
                             process.arguments = ["winecfg"]
-                            Wine.transformProcess(process, containerURL: container.url)
+                            try Wine.transformProcess(
+                                process,
+                                containerURL: container.url,
+                                runtimeID: container.runtimeID
+                            )
                             
                             try process.run()
 
-                            while let isActive = try? await Wine.tasklist(for: containerURL).contains(where: { $0.imageName == "winecfg.exe" }) {
+                            while let isActive = try? await Wine.tasklist(
+                                    for: containerURL,
+                                    runtimeID: container.runtimeID
+                                ).contains(where: { $0.imageName == "winecfg.exe" }) {
                                 try await Task.sleep(for: .seconds(2))
                                 await MainActor.run { isConfiguratorActive = isActive }
                             }
@@ -610,11 +637,18 @@ struct ContainerConfigurationView: View {
                         Task {
                             let process: Process = .init()
                             process.arguments = ["regedit"]
-                            Wine.transformProcess(process, containerURL: container.url)
+                            try Wine.transformProcess(
+                                process,
+                                containerURL: container.url,
+                                runtimeID: container.runtimeID
+                            )
                             
                             try process.run()
 
-                            while let isActive = try? await Wine.tasklist(for: containerURL).contains(where: { $0.imageName == "regedit.exe" }) {
+                            while let isActive = try? await Wine.tasklist(
+                                    for: containerURL,
+                                    runtimeID: container.runtimeID
+                                ).contains(where: { $0.imageName == "regedit.exe" }) {
                                 try await Task.sleep(for: .seconds(2))
                                 await MainActor.run { isRegistryEditorActive = isActive }
                             }
