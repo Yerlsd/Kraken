@@ -201,7 +201,10 @@ extension Wine {
         let process = Process()
         process.arguments = ["wineboot"] + parameters.map(\.rawValue)
         try transformProcess(process, containerURL: containerURL, runtimeID: runtimeID)
-        return try await process.runWrapped()
+
+        let result = try await process.runWrapped()
+        try process.checkTerminationStatus()
+        return result
     }
 
     @discardableResult
@@ -250,11 +253,7 @@ extension Wine {
 
         do {
             let newContainer = Container(name: name, url: url, settings: settings, runtimeID: runtimeID)
-            let result = try await boot(at: url, runtimeID: runtimeID, parameters: .prefixInit)
-
-            guard result.standardError?.contains(try Regex(#"wine: configuration in (.*?) has been updated\."#)) == true else {
-                throw Container.UnableToBootError()
-            }
+            _ = try await boot(at: url, runtimeID: runtimeID, parameters: .prefixInit)
 
             containerURLs.insert(url)
 
