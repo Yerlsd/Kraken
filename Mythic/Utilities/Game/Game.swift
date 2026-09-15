@@ -70,14 +70,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
 
     /// Transitional compatibility accessor. `launchProfile.container` is the canonical source of truth.
     final var containerURL: URL? {
-        get {
-            let url = launchProfile.container?.url
-            if Wine.containerURLs.first(where: { $0 == url }) == nil || url == nil {
-                launchProfile.container = Wine.containerURLs.first.map(ContainerReference.init(url:))
-            }
-
-            return launchProfile.container?.url
-        }
+        get { launchProfile.container?.url }
         set { launchProfile.container = newValue.map(ContainerReference.init(url:)) }
     }
 
@@ -114,7 +107,6 @@ struct LaunchProfile: Codable, Equatable, Sendable {
 
         self.launchProfile = .init(
             container: containerURL.map(ContainerReference.init(url:))
-                ?? Wine.containerURLs.first.map(ContainerReference.init(url:))
         )
     }
 
