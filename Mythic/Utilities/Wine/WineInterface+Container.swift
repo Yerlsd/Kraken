@@ -60,6 +60,17 @@ extension Wine {
             self.runtimeID = object.runtimeID
         }
 
+        /// Decode an existing container, defaulting legacy containers to the Engine 2 runtime.
+        required init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+
+            self.name = try container.decode(String.self, forKey: .name)
+            self.url = try container.decode(URL.self, forKey: .url)
+            self.id = try container.decode(UUID.self, forKey: .id)
+            self.settings = try container.decode(Container.Settings.self, forKey: .settings)
+            self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
+        }
+
         /// Synthesize a container object from a URL.
         convenience init(createFrom url: URL) {
             self.init(name: url.lastPathComponent, url: url, settings: .init())
@@ -97,16 +108,6 @@ extension Wine.Container: Codable {
         case id
         case settings
         case runtimeID
-    }
-
-    required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-
-        self.name = try container.decode(String.self, forKey: .name)
-        self.url = try container.decode(URL.self, forKey: .url)
-        self.id = try container.decode(UUID.self, forKey: .id)
-        self.settings = try container.decode(Container.Settings.self, forKey: .settings)
-        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
     }
 }
 
