@@ -81,6 +81,13 @@ class LocalGameManager {
             case .windows:
                 guard let containerURL = game.containerURL else { throw Wine.Container.DoesNotExistError() }
                 let container = try Wine.getContainerObject(at: containerURL)
+                let runtimeID = game.launchProfile.runtimeID
+
+                guard container.runtimeID == runtimeID else {
+                    throw CocoaError(.coderInvalidValue, userInfo: [
+                        NSLocalizedDescriptionKey: "The selected runtime does not match the runtime that owns this container."
+                    ])
+                }
 
                 var environment: [String: String] = .init()
                 environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: container.url)
@@ -92,7 +99,7 @@ class LocalGameManager {
                 let process: Process = .init()
                 process.arguments = [location.path] + game.launchArguments
                 process.environment = environment
-                Wine.transformProcess(process, containerURL: containerURL)
+                try Wine.transformProcess(process, containerURL: containerURL, runtimeID: runtimeID)
                 
                 try process.run()
                 
