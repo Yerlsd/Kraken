@@ -19,10 +19,6 @@ enum RuntimeID: String, Codable, Equatable, Hashable, Sendable {
 }
 
 /// Data describing a runtime available to Kraken.
-///
-/// Runtime is intentionally data-only. It does not inspect the filesystem or
-/// launch processes; those responsibilities belong to Engine/Wine runtime
-/// services.
 struct Runtime: Codable, Equatable, Hashable, Sendable, Identifiable {
     let id: RuntimeID
     let name: String
@@ -35,10 +31,6 @@ struct Runtime: Codable, Equatable, Hashable, Sendable, Identifiable {
 }
 
 /// Filesystem locations belonging to a concrete Wine runtime.
-///
-/// This type is deliberately data-only. Runtime discovery and installation are
-/// handled by `Engine`; this type only carries resolved executable locations to
-/// the process-launch layer.
 struct WineRuntime: Equatable, Sendable {
     let id: RuntimeID
     let rootDirectory: URL
@@ -48,19 +40,12 @@ struct WineRuntime: Equatable, Sendable {
 }
 
 extension Engine {
-    /// Stable runtime identity represented by the existing Engine 2 implementation.
     static let runtimeID: RuntimeID = .mythicEngine
 
-    /// Root directory reserved for runtimes managed independently from the
-    /// monolithic Engine 2 installation. Keeping this outside `Engine.directory`
-    /// prevents Engine 2 install/update/remove operations from deleting Engine 3.
+    /// Runtime storage is kept outside the monolithic Engine 2 directory because
+    /// Engine 2 installation/update/removal replaces that directory wholesale.
     static let runtimeDirectory = Bundle.appHome!.appending(path: "Runtimes")
 
-    /// Resolves the executable layout for a runtime without changing or touching it.
-    ///
-    /// Engine 2 retains its existing `wine64` path. The Engine 3 Wine 11 package
-    /// is distributed as a Wine Stable.app bundle and uses Wine's unified `wine`
-    /// loader inside the bundle resources.
     static func wineRuntime(for runtimeID: RuntimeID) -> WineRuntime {
         switch runtimeID {
         case .mythicEngine:
@@ -85,18 +70,13 @@ extension Engine {
         }
     }
 
-    /// Returns whether the runtime has the complete loader pair needed for
-    /// normal Wine execution.
     static func isRuntimeInstalled(_ runtimeID: RuntimeID) -> Bool {
         let runtime = wineRuntime(for: runtimeID)
         return FileManager.default.fileExists(atPath: runtime.wineExecutable.path)
             && FileManager.default.fileExists(atPath: runtime.wineserverExecutable.path)
     }
 
-    /// Installs the first Engine 3 runtime: the verified macOS Wine 11.0_1 build.
-    ///
-    /// This deliberately does not modify Engine 2, does not create or migrate
-    /// prefixes, and does not change the active runtime for any game.
+    /// Install the first Engine 3 runtime without touching the existing Engine 2 installation.
     static func installWine11Runtime() async throws {
         try await WineRuntimeInstaller.install()
     }
@@ -116,8 +96,7 @@ extension Engine {
 }
 
 extension Wine {
-    /// Resolves the Wine version for a specific runtime without changing the
-    /// legacy Engine 2 `retrieveVersion()` API.
+    /// Resolves the Wine version for a specific runtime.
     static func retrieveVersion(for runtimeID: RuntimeID) -> SemanticVersion? {
         guard Engine.isRuntimeInstalled(runtimeID) else { return nil }
 
@@ -136,10 +115,6 @@ extension Wine {
     }
 
     /// Runtime-aware replacement for the legacy Engine 2 process transformation.
-    ///
-    /// The existing two-argument overload is intentionally untouched so Engine 2
-    /// callers retain their exact behaviour. Engine 3 callers opt into this path
-    /// explicitly through a `RuntimeID`.
     static func transformProcess(
         _ process: Process,
         containerURL: URL,
@@ -156,14 +131,12 @@ extension Wine {
         environment["WINEPREFIX"] = containerURL.path
 
         if runtimeID == .wine11 {
-            // Keep Wine 11 self-contained instead of allowing a system or other
-            // runtime's wineserver to be selected accidentally.
             environment["WINESERVER"] = runtime.wineserverExecutable.path
             environment["WINELOADER"] = runtime.wineExecutable.path
-            if let wineBundleURL = runtime.wineBundleURL {
-                environment["WINE"] = runtime.wineExecutable.path
-                environment["WINE64"] = runtime.wineExecutable.path
-                environment["WINE_APP_BUNDLE"] = wineBundleURL.path
+            environment["WINE"] = runtime.wineExecutable.path
+            environment["WINE64"] = runtime.wineExecutable.path
+            if let bundleURL = runtime.wineBundleURL {
+                environment["WINE_APP_BUNDLE"] = bundleURL.path
             }
         }
 
@@ -171,21 +144,15 @@ extension Wine {
     }
 }
 
-/// Downloads and installs the Engine 3 Wine 11 runtime into a private staging
-/// directory before replacing the active runtime atomically.
-final class WineRuntimeInstaller {
+/// Downloads and installs the pinned macOS Wine 11 runtime into a private staging
+/// directory before replacing the active runtime.
+private final class WineRuntimeInstaller {
     private static let runtimeID: RuntimeID = .wine11
-    private static let version = "11.0_1"
     private static let archiveURL = URL(string: "https://github.com/Gcenx/macOS_Wine_builds/releases/download/11.0_1/wine-stable-11.0_1-osx64.tar.xz")!
     private static let expectedSHA256 = "b50dc50ec7f41d58b115a6b685d4d1315ba3c797bd3aa0f49213f2703cb82388"
 
-    private static var runtimeRoot: URL {
-        Engine.wineRuntime(for: runtimeID).rootDirectory
-    }
-
-    private static var parentDirectory: URL {
-        Engine.runtimeDirectory
-    }
+    private static var parentDirectory: URL { Engine.runtimeDirectory }
+    private static var runtimeRoot: URL { Engine.wineRuntime(for: runtimeID).rootDirectory }
 
     private static func verifySHA256(of fileURL: URL) throws {
         let handle = try FileHandle(forReadingFrom: fileURL)
@@ -193,9 +160,9 @@ final class WineRuntimeInstaller {
 
         var hasher = SHA256()
         while true {
-            let data = try handle.read(upToCount: 4 * 1024 * 1024) ?? Data()
-            if data.isEmpty { break }
-            hasher.update(data: data)
+            let chunk = try handle.read(upToCount: 4 * 1024 * 1024) ?? Data()
+            if chunk.isEmpty { break }
+            hasher.update(data: chunk)
         }
 
         let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
@@ -205,10 +172,8 @@ final class WineRuntimeInstaller {
     }
 
     private static func findWineBundle(in stagingDirectory: URL) throws -> URL {
-        let expected = stagingDirectory.appending(path: "Wine Stable.app")
-        if FileManager.default.fileExists(atPath: expected.path) {
-            return expected
-        }
+        let direct = stagingDirectory.appending(path: "Wine Stable.app")
+        if FileManager.default.fileExists(atPath: direct.path) { return direct }
 
         let enumerator = FileManager.default.enumerator(
             at: stagingDirectory,
@@ -217,27 +182,19 @@ final class WineRuntimeInstaller {
         )
 
         while let url = enumerator?.nextObject() as? URL {
-            if url.lastPathComponent == "Wine Stable.app" {
-                return url
-            }
+            if url.lastPathComponent == "Wine Stable.app" { return url }
         }
 
         throw RuntimeInstallError.invalidArchive
     }
 
     private static func validateWineBundle(at bundleURL: URL) throws {
-        let wineExecutable = bundleURL.appending(path: "Contents/Resources/wine/bin/wine")
-        let wineserverExecutable = bundleURL.appending(path: "Contents/Resources/wine/bin/wineserver")
-
-        guard FileManager.default.fileExists(atPath: wineExecutable.path),
-              FileManager.default.fileExists(atPath: wineserverExecutable.path) else {
+        let wine = bundleURL.appending(path: "Contents/Resources/wine/bin/wine")
+        let wineserver = bundleURL.appending(path: "Contents/Resources/wine/bin/wineserver")
+        guard FileManager.default.isExecutableFile(atPath: wine.path),
+              FileManager.default.isExecutableFile(atPath: wineserver.path) else {
             throw RuntimeInstallError.missingRuntimeFiles
         }
-    }
-
-    private static func removeItemIfExists(_ url: URL) throws {
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
-        try FileManager.default.removeItem(at: url)
     }
 
     static func install() async throws {
@@ -245,83 +202,84 @@ final class WineRuntimeInstaller {
         guard Rosetta.exists else { throw RuntimeInstallError.rosettaRequired }
         #endif
 
-        let runtime = Engine.wineRuntime(for: runtimeID)
         if Engine.isRuntimeInstalled(runtimeID), Wine.retrieveVersion(for: runtimeID) != nil {
             return
         }
 
         let fileManager = FileManager.default
-        let temporaryDirectory = try fileManager.url(
+        try fileManager.createDirectory(at: parentDirectory, withIntermediateDirectories: true)
+
+        let stagingDirectory = try fileManager.url(
             for: .itemReplacementDirectory,
             in: parentDirectory,
             appropriateFor: parentDirectory,
             create: true
         )
-        let archiveURL = temporaryDirectory.appending(path: "wine-stable-11.0_1-osx64.tar.xz")
-        let extractionDirectory = temporaryDirectory.appending(path: "extracted")
-        let installedBundleTarget = runtimeRoot.appending(path: "Wine Stable.app")
+        defer { try? fileManager.removeItem(at: stagingDirectory) }
 
-        defer {
-            try? fileManager.removeItem(at: temporaryDirectory)
-        }
-
+        let archiveFile = stagingDirectory.appending(path: "wine-stable-11.0_1-osx64.tar.xz")
+        let extractionDirectory = stagingDirectory.appending(path: "extracted")
         try fileManager.createDirectory(at: extractionDirectory, withIntermediateDirectories: true)
-        try fileManager.createDirectory(at: runtime.parentDirectory, withIntermediateDirectories: true)
 
-        let (downloadedURL, response) = try await URLSession.shared.download(from: archiveURLURL)
-        _ = response
-        try fileManager.moveItem(at: downloadedURL, to: archiveURL)
+        let (downloadURL, response) = try await URLSession.shared.download(from: archiveURL)
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200...299).contains(httpResponse.statusCode) {
+            throw URLError(.badServerResponse)
+        }
+        try fileManager.moveItem(at: downloadURL, to: archiveFile)
 
-        try verifySHA256(of: archiveURL)
+        try verifySHA256(of: archiveFile)
 
-        let extractProcess: Process = .init()
+        let extractProcess = Process()
         extractProcess.executableURL = URL(filePath: "/usr/bin/tar")
-        extractProcess.arguments = ["-xJf", archiveURL.path, "-C", extractionDirectory.path]
+        extractProcess.arguments = ["-xJf", archiveFile.path, "-C", extractionDirectory.path]
         _ = try await extractProcess.runWrapped()
         try extractProcess.checkTerminationStatus()
 
         let bundleURL = try findWineBundle(in: extractionDirectory)
         try validateWineBundle(at: bundleURL)
 
-        let validationProcess: Process = .init()
-        validationProcess.arguments = ["--version"]
+        let validationProcess = Process()
         validationProcess.executableURL = bundleURL.appending(path: "Contents/Resources/wine/bin/wine")
-        let validationResult = try await validationProcess.runWrapped()
+        validationProcess.arguments = ["--version"]
+        let result = try await validationProcess.runWrapped()
         try validationProcess.checkTerminationStatus()
-        guard validationResult.standardOutput?.contains("11.0") == true else {
-            throw RuntimeInstallError.unexpectedWineVersion(validationResult.standardOutput ?? "")
+        guard result.standardOutput?.contains("11.0") == true else {
+            throw RuntimeInstallError.unexpectedWineVersion(result.standardOutput ?? "")
         }
 
-        let stagingBundle = temporaryDirectory.appending(path: "Wine Stable.app")
-        try fileManager.moveItem(at: bundleURL, to: stagingBundle)
-        try validateWineBundle(at: stagingBundle)
+        let stagedBundle = stagingDirectory.appending(path: "Wine Stable.app")
+        try fileManager.moveItem(at: bundleURL, to: stagedBundle)
+        try validateWineBundle(at: stagedBundle)
 
+        let installedBundle = runtimeRoot.appending(path: "Wine Stable.app")
         let backupBundle = runtimeRoot.appending(path: "Wine Stable.app.previous")
         try fileManager.createDirectory(at: runtimeRoot, withIntermediateDirectories: true)
-        try removeItemIfExists(backupBundle)
 
-        if fileManager.fileExists(atPath: installedBundleTarget.path) {
-            try fileManager.moveItem(at: installedBundleTarget, to: backupBundle)
+        if fileManager.fileExists(atPath: backupBundle.path) {
+            try fileManager.removeItem(at: backupBundle)
+        }
+        if fileManager.fileExists(atPath: installedBundle.path) {
+            try fileManager.moveItem(at: installedBundle, to: backupBundle)
         }
 
         do {
-            try fileManager.moveItem(at: stagingBundle, to: installedBundleTarget)
-            try validateWineBundle(at: installedBundleTarget)
+            try fileManager.moveItem(at: stagedBundle, to: installedBundle)
+            try validateWineBundle(at: installedBundle)
         } catch {
-            try? removeItemIfExists(installedBundleTarget)
+            try? fileManager.removeItem(at: installedBundle)
             if fileManager.fileExists(atPath: backupBundle.path) {
-                try? fileManager.moveItem(at: backupBundle, to: installedBundleTarget)
+                try? fileManager.moveItem(at: backupBundle, to: installedBundle)
             }
             throw error
         }
 
-        try? removeItemIfExists(backupBundle)
-        _ = version
+        if fileManager.fileExists(atPath: backupBundle.path) {
+            try fileManager.removeItem(at: backupBundle)
+        }
     }
 
-    private static let archiveURLURL = archiveURL
-
-    enum RuntimeInstallError: LocalizedError {
+    private enum RuntimeInstallError: LocalizedError {
         case rosettaRequired
         case checksumMismatch(expected: String, actual: String)
         case invalidArchive
