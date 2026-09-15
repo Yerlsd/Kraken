@@ -6,6 +6,7 @@
 // Copyright © 2026 Kraken contributors
 
 import Foundation
+import SemanticVersion
 
 /// Stable identity for a game runtime supported by Kraken.
 enum RuntimeID: String, Codable, Equatable, Hashable, Sendable {
@@ -48,6 +49,11 @@ extension Engine {
     /// Stable runtime identity represented by the existing Engine 2 implementation.
     static let runtimeID: RuntimeID = .mythicEngine
 
+    /// Root directory reserved for runtimes managed independently from the
+    /// monolithic Engine 2 installation. Keeping this outside `Engine.directory`
+    /// prevents Engine 2 install/update/remove operations from deleting Engine 3.
+    static let runtimeDirectory = Bundle.appHome!.appending(path: "Runtimes")
+
     /// Resolves the executable layout for a runtime without changing or touching it.
     ///
     /// Engine 2 retains its existing `wine64` path. Engine 3 uses Wine 11's
@@ -63,7 +69,7 @@ extension Engine {
                 wineserverExecutable: directory.appending(path: "wine/bin/wineserver")
             )
         case .wine11:
-            let rootDirectory = directory.appending(path: "Runtimes/wine11")
+            let rootDirectory = runtimeDirectory.appending(path: "wine11")
             return .init(
                 id: .wine11,
                 rootDirectory: rootDirectory,
@@ -93,6 +99,25 @@ extension Engine {
 }
 
 extension Wine {
+    /// Resolves the Wine version for a specific runtime without changing the
+    /// legacy Engine 2 `retrieveVersion()` API.
+    static func retrieveVersion(for runtimeID: RuntimeID) -> SemanticVersion? {
+        guard Engine.isRuntimeInstalled(runtimeID) else { return nil }
+
+        let process: Process = .init()
+        process.arguments = ["--version"]
+        process.executableURL = Engine.wineRuntime(for: runtimeID).wineExecutable
+
+        let result = try? process.runWrapped()
+        guard let standardOutput = result?.standardOutput,
+              let match = try? Regex(#"wine-(\S+)"#).firstMatch(in: standardOutput),
+              let extractedVersion = match.last?.substring else {
+            return nil
+        }
+
+        return SemanticVersion(fromRelaxedString: .init(extractedVersion))
+    }
+
     /// Runtime-aware replacement for the legacy Engine 2 process transformation.
     ///
     /// The existing two-argument overload is intentionally untouched so Engine 2
