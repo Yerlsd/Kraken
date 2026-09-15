@@ -37,7 +37,7 @@ struct AboutView: View {
                         
                         if !animateTextView {
                             Group {
-                                Text("Mythic")
+                                Text("Kraken")
                                     .font(.largeTitle)
                                 Text("© by vapidinfinity ✦")
                                 
@@ -111,7 +111,7 @@ struct AboutView: View {
                             URL: .init(string: "https://codeweavers.com/")!,
                             image: Image("CrossOver"),
                             title: "⭐ CodeWeavers, and Gcenx",
-                            description: "Developing, maintaining, and porting Wine, the technology behind Mythic's underlying Windows® → macOS API translation layer."
+                            description: "Developing, maintaining, and porting Wine, the technology behind Kraken's underlying Windows® → macOS API translation layer."
                         )
                         
                         AcknowledgementCard(
@@ -122,10 +122,10 @@ struct AboutView: View {
                         )
                         
                         AcknowledgementCard(
-                            URL: .init(string: "https://github.com/MythicApp/Mythic#dependencies")!,
+                            URL: .init(string: "https://github.com/Yerlsd/Kraken#dependencies")!,
                             image: Image("BlankAppIcon"),
                             title: "⭐ Others",
-                            description: "View Mythic's other dependencies."
+                            description: "View Kraken's other dependencies."
                         )
                     }
                     .id(2)

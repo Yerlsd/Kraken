@@ -1,4 +1,4 @@
-# Contributing to Mythic
+# Contributing to Kraken
 
 Thank you for helping build a great macOS game launcher! Please read this guide before opening a PR.
 
@@ -17,8 +17,8 @@ Please read and understand our [Code of Conduct](CODE_OF_CONDUCT.md) before cont
 - Swift 6.0+
 
 **To build:**
-1. Open `Mythic.xcodeproj`
-2. Build the `Mythic` scheme
+1. Open `Kraken.xcodeproj`
+2. Build the `Kraken` scheme
 
 ---
 
@@ -145,7 +145,7 @@ Follow the existing project structure:
 
 **For non-SwiftUI strings:** Wrap string literals in `String(localized:)`:
 ```swift
-let message = String(localized: "Welcome to Mythic")
+let message = String(localized: "Welcome to Kraken")
 ```
 
 ---

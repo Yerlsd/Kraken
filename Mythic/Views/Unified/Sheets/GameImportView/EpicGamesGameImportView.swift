@@ -103,7 +103,7 @@ struct EpicGamesGameImportView: View {
                             if !FileManager.default.isReadableFile(atPath: enclosingDirectory.path) {
                                 Image(systemName: "exclamationmark.triangle")
                                     .symbolVariant(.fill)
-                                    .help("File/Folder is not readable by Mythic.")
+                                    .help("File/Folder is not readable by Kraken.")
                             }
                         }
                         

@@ -1,6 +1,6 @@
 //
 //  HomeView.swift
-//  Mythic
+//  Kraken
 //
 //  Created by vapidinfinity (esi) on 12/9/2023.
 //
@@ -14,7 +14,7 @@ import Shimmer
 import SwordRPC
 
 /**
- The main view displaying the home screen of the Mythic app.
+ The main view displaying the home screen of the Kraken app.
  */
 struct HomeView: View {
     @EnvironmentObject var networkMonitor: NetworkMonitor
@@ -83,7 +83,7 @@ struct HomeView: View {
                     .frame(height: geometry.size.height * 0.75)
                 } else {
                     ContentUnavailableView(
-                        "Welcome to Mythic!",
+                        "Welcome to Kraken!",
                         systemImage: "hand.wave",
                         description: .init("""
                         This area is where your most recently played game will appear — try launching one now!

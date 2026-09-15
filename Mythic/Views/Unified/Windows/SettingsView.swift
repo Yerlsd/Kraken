@@ -84,7 +84,7 @@ struct SettingsView: View {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
                 presence.details = "Tweaking some settings"
-                presence.state = "Configuring Mythic"
+                presence.state = "Configuring Kraken"
                 presence.timestamps.start = .now
                 presence.assets.largeImage = "macos_512x512_2x"
 
@@ -100,11 +100,11 @@ extension SettingsView {
         @State private var isResetSettingsAlertPresented = false
 
         var body: some View {
-            Button("Reset Mythic", systemImage: "power.dotted") {
+            Button("Reset Kraken", systemImage: "power.dotted") {
                 isResetAlertPresented = true
             }
             .alert(
-                "Reset Mythic?",
+                "Reset Kraken?",
                 isPresented: $isResetAlertPresented,
                 actions: {
                     Button("OK", role: .destructive) {
@@ -132,7 +132,7 @@ extension SettingsView {
                 isResetSettingsAlertPresented = true
             }
             .alert(
-                "Reset Mythic Settings?",
+                "Reset Kraken Settings?",
                 isPresented: $isResetSettingsAlertPresented,
                 actions: {
                     Button("OK", role: .destructive) {
@@ -183,7 +183,7 @@ extension SettingsView {
 
         var body: some View {
             Toggle("Minimise to dock on game launch", systemImage: "dock.arrow.down.rectangle", isOn: $minimiseOnLaunch)
-            Toggle("Force quit all games when Mythic closes", systemImage: "xmark.app", isOn: $quitOnClose)
+            Toggle("Force quit all games when Kraken closes", systemImage: "xmark.app", isOn: $quitOnClose)
         }
     }
 
@@ -232,7 +232,7 @@ extension SettingsView {
     }
 
     struct UpdatesView: View {
-        @State private var isMythicUpdatesSectionExpanded: Bool = true
+        @State private var isKrakenUpdatesSectionExpanded: Bool = true
         @State private var isEngineUpdatesSectionExpanded: Bool = true
 
         @AppStorage("engineChannel") private var engineChannel: String = Engine.ReleaseChannel.stable.rawValue
@@ -245,9 +245,9 @@ extension SettingsView {
         @AppStorage("engineAutomaticallyChecksForUpdates") private var engineAutomaticallyChecksForUpdates: Bool = true
 
         var body: some View {
-            Section("Mythic", isExpanded: $isMythicUpdatesSectionExpanded) {
+            Section("Kraken", isExpanded: $isKrakenUpdatesSectionExpanded) {
 //                Toggle(
-//                    "Automatically check for Mythic updates",
+//                    "Automatically check for Kraken updates",
 //                    systemImage: "arrow.down.app.dashed",
 //                    isOn: Binding(
 //                        get: { sparkleController.updater.automaticallyChecksForUpdates },
@@ -256,7 +256,7 @@ extension SettingsView {
 //                )
 //
 //                Toggle(
-//                    "Automatically download Mythic updates",
+//                    "Automatically download Kraken updates",
 //                    systemImage: "arrow.down.app",
 //                    isOn: Binding(
 //                        get: { sparkleController.updater.automaticallyDownloadsUpdates },
@@ -332,7 +332,7 @@ extension SettingsView {
 
         var body: some View {
             Section("Discord", isExpanded: $isServicesDiscordSectionExpanded) {
-                Toggle("Display Mythic activity status on Discord", isOn: $discordRPCEnabled)
+                Toggle("Display Kraken activity status on Discord", isOn: $discordRPCEnabled)
                     .onChange(of: discordRPCEnabled) { _, newValue in
                         if newValue {
                             _ = discordRPC.connect()

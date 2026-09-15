@@ -84,7 +84,7 @@ struct LocalGameImportView: View {
                             if !FileManager.default.isReadableFile(atPath: location.path) {
                                 Image(systemName: "exclamationmark.triangle")
                                     .symbolVariant(.fill)
-                                    .help("File/Folder is not readable by Mythic.")
+                                    .help("File/Folder is not readable by Kraken.")
                             }
                             
                             Spacer()

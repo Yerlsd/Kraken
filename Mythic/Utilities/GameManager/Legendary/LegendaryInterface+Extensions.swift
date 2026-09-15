@@ -1325,7 +1325,7 @@ extension Legendary {
     }
 
     struct UnableToRetrieveError: LocalizedError {
-        var errorDescription: String? = String(localized: "Mythic is unable to retrive the requested metadata for this game.")
+        var errorDescription: String? = String(localized: "Kraken is unable to retrive the requested metadata for this game.")
     }
 
     /// Error when legendary is signed out on a command that enforces signin.
