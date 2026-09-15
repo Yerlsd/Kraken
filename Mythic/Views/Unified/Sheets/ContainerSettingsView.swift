@@ -12,6 +12,7 @@ import SwiftUI
 struct ContainerSettingsView: View {
     @Binding var selectedContainerURL: URL?
     var withPicker: Bool
+    var selectedRuntimeID: RuntimeID = Runtime.current.id
 
     @ObservedObject private var variables: VariableManager = .shared
 
@@ -30,10 +31,14 @@ struct ContainerSettingsView: View {
     @State private var windowsVersionSuccess: Bool?
 
     private func fetchRetinaModeStatus() async {
-        guard let selectedContainerURL else { return }
+        guard let selectedContainerURL,
+              let container = try? Wine.getContainerObject(at: selectedContainerURL) else { return }
         
         do {
-            let fetchedRetinaMode = try await Wine.getRetinaMode(containerURL: selectedContainerURL)
+            let fetchedRetinaMode = try await Wine.getRetinaMode(
+                containerURL: selectedContainerURL,
+                runtimeID: container.runtimeID
+            )
             
             await MainActor.run(body: { retinaMode = fetchedRetinaMode })
             // intentionally separated, to prevent both variable updates from occuring during the same render cycle
@@ -48,10 +53,14 @@ struct ContainerSettingsView: View {
     }
 
     private func fetchWindowsVersion() async {
-        guard let selectedContainerURL else { return }
+        guard let selectedContainerURL,
+              let container = try? Wine.getContainerObject(at: selectedContainerURL) else { return }
 
         do {
-            if let fetchedWindowsVersion = try await Wine.getWindowsVersion(containerURL: selectedContainerURL) {
+            if let fetchedWindowsVersion = try await Wine.getWindowsVersion(
+                containerURL: selectedContainerURL,
+                runtimeID: container.runtimeID
+            ) {
                 await MainActor.run(body: { windowsVersion = fetchedWindowsVersion })
                 // intentionally separated, to prevent both variable updates from occuring during the same render cycle
                 await MainActor.run {
@@ -69,7 +78,7 @@ struct ContainerSettingsView: View {
         if withPicker {
             if variables.getVariable("booting") != true {
                 Picker("Current Container", selection: $selectedContainerURL) {
-                    ForEach(Wine.containerObjects) { container in
+                    ForEach(Wine.containerObjects.filter { $0.runtimeID == selectedRuntimeID }) { container in
                         Text(container.name)
                             .tag(container.url)
                     }
@@ -87,6 +96,13 @@ struct ContainerSettingsView: View {
         if let selectedContainerURL,
            let container = try? Wine.getContainerObject(at: selectedContainerURL) {
             Group {
+                HStack {
+                    Text("Runtime")
+                    Spacer()
+                    Text(Runtime(id: container.runtimeID, name: container.runtimeID == .wine11 ? "Wine 11" : "Mythic Engine").name)
+                        .foregroundStyle(.secondary)
+                }
+
                 Toggle("Performance HUD", isOn: Binding(
                     get: { container.settings.metalHUD },
                     set: { container.settings.metalHUD = $0 }
@@ -105,7 +121,11 @@ struct ContainerSettingsView: View {
                         observing: $retinaMode,
                         placement: .leading
                     ) {
-                        try? await Wine.toggleRetinaMode(containerURL: container.url, toggle: retinaMode)
+                        try? await Wine.toggleRetinaMode(
+                            containerURL: container.url,
+                            toggle: retinaMode,
+                            runtimeID: container.runtimeID
+                        )
                         container.settings.retinaMode = retinaMode
                         retinaModeSuccess = true
                     }
@@ -137,6 +157,7 @@ struct ContainerSettingsView: View {
                         isDXVKDisclaimerPresented = true
                     }
                 ))
+                .disabled(container.runtimeID != .mythicEngine)
                 .withOperationStatus(
                     operating: $modifyingDXVK,
                     successful: $dxvkSuccess,
@@ -179,7 +200,7 @@ struct ContainerSettingsView: View {
                     get: { container.settings.dxvkAsync },
                     set: { container.settings.dxvkAsync = $0 }
                 ))
-                .disabled(!container.settings.dxvk || modifyingDXVK)
+                .disabled(!container.settings.dxvk || modifyingDXVK || container.runtimeID != .mythicEngine)
 
                 Picker("Windows Version", selection: $windowsVersion) {
                     ForEach(Wine.WindowsVersion.allCases, id: \.self) { version in
@@ -196,12 +217,16 @@ struct ContainerSettingsView: View {
                     observing: $windowsVersion,
                     placement: .leading
                 ) {
-                    try await Wine.setWindowsVersion(containerURL: container.url, version: windowsVersion)
+                    try await Wine.setWindowsVersion(
+                        containerURL: container.url,
+                        version: windowsVersion,
+                        runtimeID: container.runtimeID
+                    )
                     container.settings.windowsVersion = windowsVersion
                     windowsVersionSuccess = true
                 }
             }
-            .disabled(!Engine.isInstalled)
+            .disabled(!Engine.isRuntimeInstalled(container.runtimeID))
             .id(selectedContainerURL)
         } else if let selectedContainerURL,
                   Wine.containerExists(at: selectedContainerURL) {
@@ -213,7 +238,6 @@ struct ContainerSettingsView: View {
                 but the settings are inaccessible or corrupted.
                 If this persists, please delete this container and create a new one.
                 """)
-            )
         } else {
             ContentUnavailableView(
                 "Unable to locate container.",
@@ -223,7 +247,6 @@ struct ContainerSettingsView: View {
                 If this container is not stored on an external device,
                 Please remove it from Kraken.
                 """)
-            )
         }
     }
 }
