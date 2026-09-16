@@ -23,23 +23,22 @@ struct GameCard: View {
             .aspectRatio(4 / 5, contentMode: .fit)
             .clipShape(.rect(cornerRadius: 16))
             .overlay(alignment: .bottom) {
-                HStack(spacing: 8) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        GameCard.TitleAndInformationView(
-                            game: $game,
-                            font: .headline
-                        )
-                    }
+                VStack(alignment: .leading, spacing: 7) {
+                    GameCard.TitleAndInformationView(
+                        game: $game,
+                        font: .headline,
+                        withSubscriptedInfo: true
+                    )
+                    .lineLimit(2)
                     .layoutPriority(1)
-
-                    Spacer(minLength: 4)
 
                     GameCard.ButtonsView(game: $game)
                         .clipShape(.capsule)
                         .progressViewStyle(.circular)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .onChange(of: isImageEmpty) {
                     if #unavailable(macOS 26.0) {
                         isImageEmptyPreMacOSTahoe = $1
