@@ -18,11 +18,6 @@ struct ContentView: View {
     
     @ObservedObject private var updateController: SparkleUpdateController = .shared
     @Bindable private var operationManager: GameOperationManager = .shared
-
-    @State private var appVersion: String = .init()
-    @State private var buildNumber: Int = 0
-    
-    @State private var engineVersion: SemanticVersion?
     
     var body: some View {
         NavigationSplitView(
@@ -68,7 +63,7 @@ struct ContentView: View {
 
                 // separate downloads view from main list because alignment doesn't work within the main list
                 if !operationManager.queue.isEmpty {
-                    List { // must wrap in a list to have the same styling as the other links
+                    List {
                         NavigationLink(destination: OperationsView()) {
                             Label("Operations", systemImage: "progress.indicator")
                                 .help("View all active game operations")
@@ -79,26 +74,6 @@ struct ContentView: View {
                     .scrollIndicators(.hidden)
                 }
                 
-#if DEBUG
-                VStack {
-                    if let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-                       let bundleVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
-                       let mythicVersion: SemanticVersion = .init("\(shortVersion)+\(bundleVersion)") {
-                        Text("Kraken \(mythicVersion.prettyString)")
-                    }
-                    
-                    if let engineVersion {
-                        Text("Mythic Engine \(engineVersion.prettyString)")
-                    }
-                }
-                .task { @MainActor in
-                    engineVersion = await Engine.installedVersion
-                }
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .padding(.bottom)
-#endif // DEBUG
-
                 switch updateController.state {
                 case .updateAvailable:
                     updateBlock("Update Available", buttonText: "Show More") {
@@ -115,16 +90,6 @@ struct ContentView: View {
                 HomeView()
             }
         )
-        .overlay(alignment: .bottomTrailing) {
-            Image("KrakenLogo")
-                .resizable()
-                .scaledToFit()
-                .frame(width: 24, height: 24)
-                .clipShape(.rect(cornerRadius: 5))
-                .padding(10)
-                .opacity(0.8)
-                .allowsHitTesting(false)
-        }
         .toolbar {
             ToolbarItem(placement: .status) {
                 if !networkMonitor.isConnected {
