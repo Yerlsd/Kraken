@@ -29,50 +29,44 @@ struct GameSettingsView: View {
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
-                VStack {
+                VStack(spacing: 14) {
                     ZStack(alignment: .bottomLeading) {
                         GameImageCard(url: game.horizontalImageURL, isImageEmpty: $isImageEmpty)
-                            .aspectRatio(16/9, contentMode: .fill)
-                            .frame(width: geometry.size.width,
-                                   height: geometry.size.height * 0.75)
-                            .glur(radius: 18,
-                                  offset: 0.6,
-                                  interpolation: 0.6)
+                            .aspectRatio(16 / 9, contentMode: .fill)
+                            .frame(
+                                width: geometry.size.width,
+                                height: min(270, geometry.size.height * 0.42)
+                            )
+                            .clipShape(.rect(cornerRadius: 16))
+                            .glur(radius: 18, offset: 0.6, interpolation: 0.6)
                         
                         HStack {
                             if isImageEmpty && game.isFallbackImageAvailable {
                                 GameImageCard.FallbackGameImageCard(game: .constant(game))
-                                    .frame(width: 65, height: 65)
+                                    .frame(width: 58, height: 58)
                                     .aspectRatio(contentMode: .fit)
-                                    .padding(.trailing)
+                                    .padding(.trailing, 2)
                             }
 
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    GameCard.TitleAndInformationView(game: $game, withSubscriptedInfo: false)
-                                }
+                            VStack(alignment: .leading, spacing: 8) {
+                                GameCard.TitleAndInformationView(game: $game, withSubscriptedInfo: false)
+                                    .lineLimit(1)
                                 
-                                HStack {
-                                    GameCard.ButtonsView(game: $game, withLabel: true)
-                                        .clipShape(.capsule)
-                                }
+                                GameCard.ButtonsView(game: $game, withLabel: true)
+                                    .clipShape(.capsule)
                             }
                         }
-                        .padding([.leading, .bottom])
+                        .padding(16)
                         .conditionalTransform(if: !isImageEmpty) { view in
-                            view
-                                .foregroundStyle(.white)
+                            view.foregroundStyle(.white)
                         }
                     }
 
                     Form {
-                        // MARK: - Options Section
                         Section("Options", isExpanded: $isGameSectionExpanded) {
-                            // MARK: Launch Argument Modifier
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text("Launch options")
-
                                     Text(
                                         "Special instructions passed to the game when it starts. "
                                         + "Most people should leave these alone unless a game "
@@ -86,9 +80,12 @@ struct GameSettingsView: View {
                                         ScrollView(.horizontal) {
                                             HStack {
                                                 ForEach(game.launchArguments, id: \.self) { argument in
-                                                    ArgumentItem(game: $game, launchArguments: $game.launchArguments, argument: argument)
+                                                    ArgumentItem(
+                                                        game: $game,
+                                                        launchArguments: $game.launchArguments,
+                                                        argument: argument
+                                                    )
                                                 }
-
                                                 Spacer()
                                             }
                                         }
@@ -97,20 +94,22 @@ struct GameSettingsView: View {
                                 }
 
                                 Spacer()
-                                
-                                TextField("", text: Binding(
-                                    get: { typingArgument },
-                                    set: { newValue in
-                                        // reduce performance overhead by only allowing animations for the first two characters
-                                        if (0...1).contains(typingArgument.count) {
-                                            withAnimation {
+
+                                TextField(
+                                    "Add launch option",
+                                    text: Binding(
+                                        get: { typingArgument },
+                                        set: { newValue in
+                                            if (0...1).contains(typingArgument.count) {
+                                                withAnimation {
+                                                    typingArgument = newValue
+                                                }
+                                            } else {
                                                 typingArgument = newValue
                                             }
-                                        } else {
-                                            typingArgument = newValue
                                         }
-                                    }
-                                ))
+                                    )
+                                )
                                 .onSubmit(submitLaunchArgument)
 
                                 if !typingArgument.isEmpty {
@@ -121,11 +120,9 @@ struct GameSettingsView: View {
                                 }
                             }
 
-                            // MARK: File Integrity verification button
                             HStack {
                                 VStack(alignment: .leading) {
                                     Text("Check game files")
-
                                     Text(
                                         "Checks whether the installed game files are intact. "
                                         + "Useful when a game is crashing, missing files, "
@@ -138,27 +135,19 @@ struct GameSettingsView: View {
                                     if let currentOperation = operationManager.queue.first,
                                        case .repair = currentOperation.type,
                                        currentOperation.game == game {
-                                        HStack {
-                                            ProgressView()
-                                                .progressViewStyle(.linear)
-                                        }
-
-                                        Spacer()
+                                        ProgressView()
+                                            .progressViewStyle(.linear)
                                     }
                                 }
 
                                 Spacer()
-
                                 GameCard.Buttons.VerificationButton(game: $game, withLabel: true)
                             }
                         }
 
-                        // MARK: - File section
                         Section("File", isExpanded: $isFileSectionExpanded) {
-                            // MARK: Game location modifier
                             HStack {
                                 Text("Move \"\(game.title)\"")
-
                                 Spacer()
 
                                 if operationManager.queue.contains(where: { $0.game == game && $0.type == .move }) {
@@ -169,8 +158,6 @@ struct GameSettingsView: View {
                                         isMovingFileImporterPresented = true
                                     }
                                     .disabled(operationManager.queue.first?.game == game)
-                                    // FIXME: xcode's code formatter does NOT like using stacked parameters,
-                                    // FIXME: it messes up the indent for the .alert below this
                                     .fileImporter(
                                         isPresented: $isMovingFileImporterPresented,
                                         allowedContentTypes: [.folder],
@@ -193,9 +180,11 @@ struct GameSettingsView: View {
                                             isMovingErrorAlertPresented = true
                                         }
                                     }
-                                    .alert("Unable to move \"\(game.title)\".",
-                                           isPresented: $isMovingErrorAlertPresented,
-                                           presenting: movingError) { _ in
+                                    .alert(
+                                        "Unable to move \"\(game.title)\".",
+                                        isPresented: $isMovingErrorAlertPresented,
+                                        presenting: movingError
+                                    ) { _ in
                                         if #available(macOS 26.0, *) {
                                             Button("OK", role: .close) {
                                                 isPresented = false
@@ -211,7 +200,6 @@ struct GameSettingsView: View {
                                 }
                             }
 
-                            // MARK: View location in Finder
                             if case .installed(let location, _) = game.installationState {
                                 HStack {
                                     VStack(alignment: .leading) {
@@ -229,14 +217,16 @@ struct GameSettingsView: View {
                             }
                         }
 
-                        // MARK: - Container Settings Section
-                        if case .installed(_, let platform) = game.installationState, case .windows = platform {
+                        if case .installed(_, let platform) = game.installationState,
+                           case .windows = platform {
                             Section("Windows compatibility", isExpanded: $isContainerSectionExpanded) {
                                 HStack(alignment: .center) {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Label(
                                             game.launchProfile.runtimeOverride == nil ? "Automatic" : "Custom",
-                                            systemImage: game.launchProfile.runtimeOverride == nil ? "wand.and.stars" : "slider.horizontal.3"
+                                            systemImage: game.launchProfile.runtimeOverride == nil
+                                                ? "wand.and.stars"
+                                                : "slider.horizontal.3"
                                         )
                                         .font(.headline)
 
@@ -268,7 +258,10 @@ struct GameSettingsView: View {
                                 .fixedSize(horizontal: false, vertical: true)
 
                                 DisclosureGroup("Advanced settings", isExpanded: $isAdvancedSectionExpanded) {
-                                    Toggle("Use a manual compatibility runtime", isOn: manualRuntimeOverride)
+                                    Toggle(
+                                        "Use a manual compatibility runtime",
+                                        isOn: manualRuntimeOverride
+                                    )
 
                                     Picker("Runtime", selection: manualRuntimeSelection) {
                                         ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
@@ -327,6 +320,7 @@ private extension GameSettingsView {
         else {
             game.launchProfile.container = compatibleContainerURL(for: runtimeID)
                 .map(ContainerReference.init(url:))
+            return
         }
     }
 
@@ -378,11 +372,9 @@ private extension GameSettingsView {
             .trimmingCharacters(in: .illegalCharacters)
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // split parsed tokens from cleanedArgument
         var w = wordexp_t() // swiftlint:disable:this identifier_name
         defer { wordfree(&w) }
 
-        // verify success through exit code
         guard Darwin.wordexp(cleanedArgument, &w, 0) == 0 else { return }
 
         let splitArguments: [String] = (0..<Int(w.we_wordc))
@@ -448,7 +440,7 @@ extension GameSettingsView {
             .onTapGesture {
                 withAnimation(.easeInOut(duration: 0.3)) {
                     launchArguments.removeAll(where: { $0 == argument })
-                    if launchArguments.isEmpty { // FIXME: for `.onChange` not firing when args become empty
+                    if launchArguments.isEmpty {
                         game.launchArguments = .init()
                     }
                 }
