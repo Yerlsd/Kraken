@@ -19,6 +19,10 @@ struct GameListView: View {
     
     @State private var isGameImportViewPresented: Bool = false
     
+    private var adaptiveCardWidth: CGFloat {
+        min(max(gameCardSize, 180), 260)
+    }
+    
     var body: some View {
         VStack {
             if gameDataStore.library.isEmpty {
@@ -46,23 +50,29 @@ struct GameListView: View {
                 }
             } else {
                 ScrollView(.vertical) {
-                    // FIXME: sortedLibrary should not be appended to or it'll cause overwrites.
-                    // FIXME: a dirtyfix is to directly set to the underlying library
                     switch layout {
                     case .grid:
-                        LazyVGrid(columns: [.init(.adaptive(minimum: gameCardSize))]) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(
+                                    .adaptive(minimum: adaptiveCardWidth, maximum: 280),
+                                    spacing: 14
+                                )
+                            ],
+                            spacing: 14
+                        ) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 GameCard(game: .constant(game))
                             }
                         }
-                        .padding()
+                        .padding(16)
                     case .list:
-                        LazyVStack {
+                        LazyVStack(spacing: 10) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 ListGameCard(game: .constant(game))
                             }
                         }
-                        .padding()
+                        .padding(16)
                     }
                 }
                 .searchable(text: $viewModel.searchString,
