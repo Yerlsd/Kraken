@@ -14,18 +14,17 @@ struct GameSettingsView: View {
     @Bindable private var operationManager: GameOperationManager = .shared
 
     @State private var movingError: Error?
-    @State private var isMovingErrorAlertPresented: Bool = false
-    @State private var isMovingFileImporterPresented: Bool = false
+    @State private var isMovingErrorAlertPresented = false
+    @State private var isMovingFileImporterPresented = false
 
-    @State private var typingArgument: String = .init()
-    
-    @State private var isImageEmpty: Bool = true
-    
-    @State private var isFileSectionExpanded: Bool = true
-    @State private var isContainerSectionExpanded: Bool = true
-    @State private var isGameSectionExpanded: Bool = true
-    @State private var isAdvancedSectionExpanded: Bool = false
-    
+    @State private var typingArgument = String()
+    @State private var isImageEmpty = true
+
+    @State private var isFileSectionExpanded = true
+    @State private var isContainerSectionExpanded = true
+    @State private var isGameSectionExpanded = true
+    @State private var isCompatibilityOverrideExpanded = false
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
@@ -38,20 +37,18 @@ struct GameSettingsView: View {
                                 height: min(270, geometry.size.height * 0.42)
                             )
                             .clipShape(.rect(cornerRadius: 16))
-                            .glur(radius: 18, offset: 0.6, interpolation: 0.6)
-                        
+                            .glur(radius: 12, offset: 0.6, interpolation: 0.6)
+
                         HStack {
                             if isImageEmpty && game.isFallbackImageAvailable {
                                 GameImageCard.FallbackGameImageCard(game: .constant(game))
                                     .frame(width: 58, height: 58)
-                                    .aspectRatio(contentMode: .fit)
-                                    .padding(.trailing, 2)
                             }
 
                             VStack(alignment: .leading, spacing: 8) {
                                 GameCard.TitleAndInformationView(game: $game, withSubscriptedInfo: false)
                                     .lineLimit(1)
-                                
+
                                 GameCard.ButtonsView(game: $game, withLabel: true)
                                     .clipShape(.capsule)
                             }
@@ -86,7 +83,6 @@ struct GameSettingsView: View {
                                                         argument: argument
                                                     )
                                                 }
-                                                Spacer()
                                             }
                                         }
                                         .scrollIndicators(.never)
@@ -95,21 +91,16 @@ struct GameSettingsView: View {
 
                                 Spacer()
 
-                                TextField(
-                                    "Add launch option",
-                                    text: Binding(
-                                        get: { typingArgument },
-                                        set: { newValue in
-                                            if (0...1).contains(typingArgument.count) {
-                                                withAnimation {
-                                                    typingArgument = newValue
-                                                }
-                                            } else {
-                                                typingArgument = newValue
-                                            }
+                                TextField("Add launch option", text: Binding(
+                                    get: { typingArgument },
+                                    set: { newValue in
+                                        if (0...1).contains(typingArgument.count) {
+                                            withAnimation { typingArgument = newValue }
+                                        } else {
+                                            typingArgument = newValue
                                         }
-                                    )
-                                )
+                                    }
+                                ))
                                 .onSubmit(submitLaunchArgument)
 
                                 if !typingArgument.isEmpty {
@@ -166,7 +157,6 @@ struct GameSettingsView: View {
                                         switch result {
                                         case .success(let success):
                                             guard let newLocation = success.first else { return }
-
                                             Task { @MainActor in
                                                 do {
                                                     try await game.move(to: newLocation)
@@ -186,13 +176,9 @@ struct GameSettingsView: View {
                                         presenting: movingError
                                     ) { _ in
                                         if #available(macOS 26.0, *) {
-                                            Button("OK", role: .close) {
-                                                isPresented = false
-                                            }
+                                            Button("OK", role: .close) { isPresented = false }
                                         } else {
-                                            Button("OK", role: .cancel) {
-                                                isPresented = false
-                                            }
+                                            Button("OK", role: .cancel) { isPresented = false }
                                         }
                                     } message: { error in
                                         Text(error?.localizedDescription ?? "Unknown error.")
@@ -223,7 +209,7 @@ struct GameSettingsView: View {
                                 HStack(alignment: .center) {
                                     VStack(alignment: .leading, spacing: 3) {
                                         Label(
-                                            game.launchProfile.runtimeOverride == nil ? "Automatic" : "Custom",
+                                            game.launchProfile.runtimeOverride == nil ? "Automatic" : "Manual",
                                             systemImage: game.launchProfile.runtimeOverride == nil
                                                 ? "wand.and.stars"
                                                 : "slider.horizontal.3"
@@ -233,7 +219,7 @@ struct GameSettingsView: View {
                                         Text(
                                             game.launchProfile.runtimeOverride == nil
                                                 ? "Managed by Kraken"
-                                                : "Configured in Advanced settings"
+                                                : "Manual compatibility override enabled"
                                         )
                                         .foregroundStyle(.secondary)
                                     }
@@ -250,14 +236,17 @@ struct GameSettingsView: View {
 
                                 Text(
                                     game.launchProfile.runtimeOverride == nil
-                                        ? "Kraken uses this game's existing validated compatibility setup."
-                                        : "This game is using a manual compatibility override."
+                                        ? "Kraken uses the game's current validated compatibility setup."
+                                        : "The selected runtime and compatible container are used for this game."
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                                DisclosureGroup("Advanced settings", isExpanded: $isAdvancedSectionExpanded) {
+                                DisclosureGroup(
+                                    "Compatibility override",
+                                    isExpanded: $isCompatibilityOverrideExpanded
+                                ) {
                                     Toggle(
                                         "Use a manual compatibility runtime",
                                         isOn: manualRuntimeOverride
@@ -318,9 +307,10 @@ private extension GameSettingsView {
             let currentContainer = try? Wine.getContainerObject(at: currentURL),
             currentContainer.runtimeID == runtimeID
         else {
-            game.launchProfile.container = compatibleContainerURL(for: runtimeID)
+            var profile = game.launchProfile
+            profile.container = compatibleContainerURL(for: runtimeID)
                 .map(ContainerReference.init(url:))
-            return
+            game.launchProfile = profile
         }
     }
 
@@ -328,24 +318,26 @@ private extension GameSettingsView {
         Binding(
             get: { game.launchProfile.runtimeOverride != nil },
             set: { enabled in
+                var profile = game.launchProfile
+
                 if enabled {
-                    let runtimeID = game.launchProfile.container.flatMap { reference in
+                    let runtimeID = profile.container.flatMap { reference in
                         (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? game.launchProfile.runtimeID
+                    } ?? profile.runtimeID
 
-                    game.launchProfile.runtimeOverride = runtimeID
-
-                    if let containerURL = compatibleContainerURL(for: runtimeID) {
-                        game.launchProfile.container = ContainerReference(url: containerURL)
-                    }
+                    profile.runtimeOverride = runtimeID
+                    profile.container = compatibleContainerURL(for: runtimeID)
+                        .map(ContainerReference.init(url:))
                 } else {
-                    let automaticRuntime = game.launchProfile.container.flatMap { reference in
+                    let automaticRuntime = profile.container.flatMap { reference in
                         (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? game.launchProfile.runtimeID
+                    } ?? profile.runtimeID
 
-                    game.launchProfile.runtimeID = automaticRuntime
-                    game.launchProfile.runtimeOverride = nil
+                    profile.runtimeID = automaticRuntime
+                    profile.runtimeOverride = nil
                 }
+
+                game.launchProfile = profile
             }
         )
     }
@@ -354,15 +346,13 @@ private extension GameSettingsView {
         Binding(
             get: { game.launchProfile.runtimeOverride ?? game.launchProfile.runtimeID },
             set: { newRuntimeID in
-                guard Engine.isRuntimeInstalled(newRuntimeID) else {
-                    return
-                }
+                guard Engine.isRuntimeInstalled(newRuntimeID) else { return }
 
-                game.launchProfile.runtimeOverride = newRuntimeID
-
-                if let containerURL = compatibleContainerURL(for: newRuntimeID) {
-                    game.launchProfile.container = ContainerReference(url: containerURL)
-                }
+                var profile = game.launchProfile
+                profile.runtimeOverride = newRuntimeID
+                profile.container = compatibleContainerURL(for: newRuntimeID)
+                    .map(ContainerReference.init(url:))
+                game.launchProfile = profile
             }
         )
     }
@@ -395,7 +385,7 @@ private extension GameSettingsView {
                 SubscriptedTextView(platform.description)
             }
             GameCard.SubscriptedInfoView(game: $game)
-            
+
             Spacer()
 
             Button("Close") { isPresented = false }
@@ -403,7 +393,7 @@ private extension GameSettingsView {
         }
         .padding()
     }
-    
+
     func setDiscordPresence() {
         discordRPC.setPresence({
             var presence: RichPresence = .init()
@@ -421,9 +411,8 @@ extension GameSettingsView {
         @Binding var game: Game
         @Binding var launchArguments: [String]
         var argument: String
-        
-        @State var isHoveringOverArgument: Bool = false
-        
+        @State var isHoveringOverArgument = false
+
         var body: some View {
             HStack {
                 Text(argument)
@@ -450,6 +439,9 @@ extension GameSettingsView {
 }
 
 #Preview {
-    GameSettingsView(game: .constant(placeholderGame(type: Game.self)), isPresented: .constant(true))
-        .environmentObject(NetworkMonitor.shared)
+    GameSettingsView(
+        game: .constant(placeholderGame(type: Game.self)),
+        isPresented: .constant(true)
+    )
+    .environmentObject(NetworkMonitor.shared)
 }
