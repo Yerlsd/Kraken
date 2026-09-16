@@ -15,34 +15,27 @@ struct GameListView: View {
     @Bindable var gameDataStore: GameDataStore = .shared
     
     @CodableAppStorage("gameListLayout") var layout: GameListViewModel.Layout = .grid
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 200.0
+    @AppStorage("gameCardSize") private var gameCardSize: Double = 240.0
     
     @State private var isGameImportViewPresented: Bool = false
     
     private var adaptiveCardWidth: CGFloat {
-        min(max(gameCardSize, 180), 260)
+        min(max(gameCardSize, 220), 280)
     }
     
     var body: some View {
-        VStack {
+        VStack(spacing: 0) {
             if gameDataStore.library.isEmpty {
                 ContentUnavailableView(
-                    "No games found. 😢",
-                    systemImage: "folder.badge.questionmark",
-                    description: Text("""
-                        Games in your library will appear here.
-                        If there are games in your library and they're not appearing, try restarting Kraken.
-                        """)
+                    "No games found",
+                    systemImage: "gamecontroller",
+                    description: Text("Games in your library will appear here.")
                 )
-                .task {
-                    try? await gameDataStore.refreshFromStorefronts()
-                }
                 
                 Button {
                     isGameImportViewPresented = true
                 } label: {
                     Label("Import Game", systemImage: "plus.app")
-                        .padding(5)
                 }
                 .buttonStyle(.borderedProminent)
                 .sheet(isPresented: $isGameImportViewPresented) {
@@ -56,29 +49,37 @@ struct GameListView: View {
                             columns: [
                                 GridItem(
                                     .adaptive(minimum: adaptiveCardWidth, maximum: 280),
-                                    spacing: 14
+                                    spacing: 16
                                 )
                             ],
-                            spacing: 14
+                            spacing: 16
                         ) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 GameCard(game: .constant(game))
+                                    .frame(maxWidth: 280)
                             }
                         }
-                        .padding(16)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 16)
                     case .list:
-                        LazyVStack(spacing: 10) {
+                        LazyVStack(spacing: 8) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 ListGameCard(game: .constant(game))
                             }
                         }
-                        .padding(16)
+                        .frame(maxWidth: 980)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 16)
                     }
                 }
-                .searchable(text: $viewModel.searchString,
-                            tokens: $viewModel.searchTokens,
-                            suggestedTokens: .constant(viewModel.suggestedTokens),
-                            placement: .toolbar) { token in
+                .searchable(
+                    text: $viewModel.searchString,
+                    tokens: $viewModel.searchTokens,
+                    suggestedTokens: .constant(viewModel.suggestedTokens),
+                    placement: .toolbar
+                ) { token in
                     switch token {
                     case .platform(let platform):
                         Text(platform.description)
