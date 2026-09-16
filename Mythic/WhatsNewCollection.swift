@@ -12,6 +12,25 @@ import SwiftUI
 
 extension KrakenApp: @MainActor WhatsNewCollectionProvider {
     var whatsNewCollection: WhatsNewCollection {
+        // Historical entry retained so existing installations can resolve it.
+        WhatsNew(
+            version: "0.5.0",
+            title: "What's new in Kraken",
+            features: [
+                .init(image: .init(systemName: "ladybug"), title: "Bug Fixes & Performance Improvements", subtitle: "A fair bit of bugfixes this time around."),
+                .init(image: .init(systemName: "macwindow"), title: "Brand New Interface", subtitle: "Kraken now uses Apple's new 'Liquid Glass' design language."),
+                .init(image: .init(systemName: "figure.wave"), title: "Overhauled Onboarding Experience", subtitle: "Reimagined for speed and ease-of-use."),
+                .init(image: .init(systemName: "macwindow.and.pointer.arrow"), title: "Improved View Responsiveness", subtitle: "Smoother scrolling, snappier animations, happier everyone!!"),
+                .init(image: .init(systemName: "curlybraces"), title: "Codebase Improvements", subtitle: "Refactored for Swift 6 safety and swiftness.")
+            ],
+            primaryAction: .init(),
+            secondaryAction: .init(
+                title: "Learn more",
+                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.5.0"))
+            )
+        )
+
+        // Current development entry. Keep this last so it is the current welcome screen.
         WhatsNew(
             version: "0.6.0",
             title: "Welcome to Kraken",
@@ -39,32 +58,13 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
                 .init(
                     image: .init(systemName: "hammer"),
                     title: "Built as Kraken",
-                    subtitle: "This branch is the foundation for Kraken's own launcher experience while retaining the existing engine underneath."
+                    subtitle: "This development build is the foundation for Kraken's own launcher experience while retaining the existing engine underneath."
                 )
             ],
             primaryAction: .init(),
             secondaryAction: .init(
                 title: "Learn more",
                 action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken"))
-            )
-        )
-
-        // Historical entries are intentionally retained so existing installations
-        // can continue to resolve previously displayed release notes.
-        WhatsNew(
-            version: "0.5.0",
-            title: "What's new in Kraken",
-            features: [
-                .init(image: .init(systemName: "ladybug"), title: "Bug Fixes & Performance Improvements", subtitle: "A fair bit of bugfixes this time around."),
-                .init(image: .init(systemName: "macwindow"), title: "Brand New Interface", subtitle: "Kraken now uses Apple's new 'Liquid Glass' design language."),
-                .init(image: .init(systemName: "figure.wave"), title: "Overhauled Onboarding Experience", subtitle: "Reimagined for speed and ease-of-use."),
-                .init(image: .init(systemName: "macwindow.and.pointer.arrow"), title: "Improved View Responsiveness", subtitle: "Smoother scrolling, snappier animations, happier everyone!!"),
-                .init(image: .init(systemName: "curlybraces"), title: "Codebase Improvements", subtitle: "Refactored for Swift 6 safety and swiftness.")
-            ],
-            primaryAction: .init(),
-            secondaryAction: .init(
-                title: "Learn more",
-                action: .openURL(.init(string: "https://github.com/Yerlsd/Kraken/releases/tag/v0.5.0"))
             )
         )
 
@@ -75,5 +75,5 @@ extension KrakenApp: @MainActor WhatsNewCollectionProvider {
 }
 
 #Preview {
-    WhatsNewView(whatsNew: KrakenApp().whatsNewCollection.first ?? WhatsNew(title: "N/A", features: []))
+    WhatsNewView(whatsNew: KrakenApp().whatsNewCollection.last ?? WhatsNew(title: "N/A", features: []))
 }
