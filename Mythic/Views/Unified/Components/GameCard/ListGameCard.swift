@@ -14,7 +14,7 @@ struct ListGameCard: View {
 
     @State private var isImageEmpty: Bool = true
 
-    static let defaultHeight: CGFloat = 88
+    static let defaultHeight: CGFloat = 76
 
     var body: some View {
         HStack(spacing: 14) {
@@ -24,13 +24,12 @@ struct ListGameCard: View {
                 withBlur: false
             )
             .aspectRatio(16 / 9, contentMode: .fill)
-            .frame(width: 104, height: 64)
+            .frame(width: 92, height: 56)
             .clipShape(.rect(cornerRadius: 10))
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(game.title)
                     .font(.headline)
-                    .bold()
                     .lineLimit(1)
                     .truncationMode(.tail)
 
@@ -41,19 +40,17 @@ struct ListGameCard: View {
             }
             .layoutPriority(1)
 
-            Spacer(minLength: 12)
+            Spacer(minLength: 10)
 
             GameCard.ButtonsView(game: $game)
                 .clipShape(.capsule)
                 .layoutPriority(1)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, minHeight: Self.defaultHeight, maxHeight: Self.defaultHeight)
-        .background {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(.background.secondary)
-        }
-        .contentShape(.rect(cornerRadius: 14))
+        .background(.background.secondary)
+        .clipShape(.rect(cornerRadius: 13))
+        .contentShape(.rect(cornerRadius: 13))
     }
 }
 
