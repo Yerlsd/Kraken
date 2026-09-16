@@ -26,7 +26,7 @@ jobs:
         restore-keys: xcode-cache-deriveddata-${{ github.workflow }}-
         
     - run: |
-        xcodebuild -scheme Kraken \
+        xcodebuild -project Kraken.xcodeproj -scheme Kraken \
           CODE_SIGNING_ALLOWED=NO \
           SWIFTLINT=NO \
           -parallel-testing-enabled YES \
