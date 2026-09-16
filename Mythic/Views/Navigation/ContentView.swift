@@ -6,7 +6,6 @@
 //
 //  Reference
 //  https://github.com/1998code/SwiftUI2-MacSidebar
-//
 
 // Copyright © 2023-2025 vapidinfinity
 
@@ -116,6 +115,16 @@ struct ContentView: View {
                 HomeView()
             }
         )
+        .overlay(alignment: .bottomTrailing) {
+            Image("KrakenLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 24, height: 24)
+                .clipShape(.rect(cornerRadius: 5))
+                .padding(10)
+                .opacity(0.8)
+                .allowsHitTesting(false)
+        }
         .toolbar {
             ToolbarItem(placement: .status) {
                 if !networkMonitor.isConnected {

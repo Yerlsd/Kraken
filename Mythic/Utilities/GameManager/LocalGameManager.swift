@@ -113,7 +113,7 @@ class LocalGameManager {
                 }
 
                 let container = try Wine.getContainerObject(at: containerURL)
-                let runtimeID = game.launchProfile.runtimeID
+                let runtimeID = game.launchProfile.runtimeOverride ?? container.runtimeID
 
                 guard container.runtimeID == runtimeID else {
                     throw CocoaError(.coderInvalidValue, userInfo: [

@@ -24,7 +24,7 @@ struct GameSettingsView: View {
     @State private var isFileSectionExpanded: Bool = true
     @State private var isContainerSectionExpanded: Bool = true
     @State private var isGameSectionExpanded: Bool = true
-    @State private var isThumbnailURLChangeSheetPresented: Bool = false
+    @State private var isAdvancedSectionExpanded: Bool = false
     
     var body: some View {
         GeometryReader { geometry in
@@ -68,29 +68,6 @@ struct GameSettingsView: View {
                     Form {
                         // MARK: - Options Section
                         Section("Options", isExpanded: $isGameSectionExpanded) {
-                            HStack {
-                                // MARK: Thumbnail URL Modifier
-                                VStack(alignment: .leading) {
-                                    Text("Thumbnail URL")
-                                    Text(game.verticalImageURL?.host ?? "Unknown")
-                                        .foregroundStyle(.secondary)
-                                        .truncationMode(.middle)
-                                        .lineLimit(1)
-                                }
-
-                                Spacer()
-
-                                Button("Change...") {
-                                    isThumbnailURLChangeSheetPresented = true
-                                }
-                                .sheet(isPresented: $isThumbnailURLChangeSheetPresented) {
-                                    ThumbnailURLChangeView(game: $game, isPresented: $isThumbnailURLChangeSheetPresented)
-                                        .padding()
-                                        .frame(minWidth: 750, idealHeight: 350)
-                                }
-                                .disabled(game.storefront != .local)
-                            }
-
                             // MARK: Launch Argument Modifier
                             HStack {
                                 VStack(alignment: .leading) {
@@ -255,34 +232,64 @@ struct GameSettingsView: View {
                         // MARK: - Container Settings Section
                         if case .installed(_, let platform) = game.installationState, case .windows = platform {
                             Section("Windows compatibility", isExpanded: $isContainerSectionExpanded) {
-                                Picker("Windows compatibility", selection: runtimeSelection) {
-                                    ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
-                                        HStack(spacing: 6) {
-                                            Text(runtime.name)
-                                            Text(runtime.id == .wine11 ? "Engine 3 · NEW" : "Engine 2 · Legacy")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        .tag(runtime.id)
-                                            .disabled(!Engine.isRuntimeInstalled(runtime.id)
-                                                      || !Wine.containerObjects.contains(where: { $0.runtimeID == runtime.id }))
+                                HStack(alignment: .center) {
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Label(
+                                            game.launchProfile.runtimeOverride == nil ? "Automatic" : "Custom",
+                                            systemImage: game.launchProfile.runtimeOverride == nil ? "wand.and.stars" : "slider.horizontal.3"
+                                        )
+                                        .font(.headline)
+
+                                        Text(
+                                            game.launchProfile.runtimeOverride == nil
+                                                ? "Managed by Kraken"
+                                                : "Configured in Advanced settings"
+                                        )
+                                        .foregroundStyle(.secondary)
                                     }
+
+                                    Spacer()
+
+                                    Image(
+                                        systemName: game.launchProfile.runtimeOverride == nil
+                                            ? "checkmark.circle.fill"
+                                            : "gearshape.fill"
+                                    )
+                                    .foregroundStyle(.secondary)
                                 }
 
-                                
                                 Text(
-                                    "Kraken chooses the Windows compatibility system "
-                                    + "for this game. Most games should use the default."
+                                    game.launchProfile.runtimeOverride == nil
+                                        ? "Kraken uses this game's existing validated compatibility setup."
+                                        : "This game is using a manual compatibility override."
                                 )
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                                ContainerSettingsView(
-                                    selectedContainerURL: $game.containerURL,
-                                    withPicker: true,
-                                    selectedRuntimeID: game.launchProfile.runtimeID
-                                )
+                                DisclosureGroup("Advanced settings", isExpanded: $isAdvancedSectionExpanded) {
+                                    Toggle("Use a manual compatibility runtime", isOn: manualRuntimeOverride)
+
+                                    Picker("Runtime", selection: manualRuntimeSelection) {
+                                        ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
+                                            HStack(spacing: 6) {
+                                                Text(runtime.name)
+                                                Text(runtime.id == .wine11 ? "Engine 3" : "Engine 2")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                            .tag(runtime.id)
+                                        }
+                                    }
+                                    .disabled(game.launchProfile.runtimeOverride == nil)
+
+                                    ContainerSettingsView(
+                                        selectedContainerURL: $game.containerURL,
+                                        withPicker: true,
+                                        selectedRuntimeID: game.launchProfile.runtimeID
+                                    )
+                                    .disabled(game.launchProfile.runtimeOverride == nil)
+                                }
                             }
                         }
                     }
@@ -300,20 +307,17 @@ struct GameSettingsView: View {
 }
 
 private extension GameSettingsView {
-    private func compatibleContainerURL(
-        for runtimeID: RuntimeID
-    ) -> URL? {
+    func compatibleContainerURL(for runtimeID: RuntimeID) -> URL? {
         Wine.containerObjects
             .filter { $0.runtimeID == runtimeID }
             .sorted {
-                $0.name.localizedStandardCompare($1.name)
-                    == .orderedAscending
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
             }
             .first?
             .url
     }
 
-    private func ensureCompatibleContainer() {
+    func ensureCompatibleContainer() {
         let runtimeID = game.launchProfile.runtimeID
 
         guard
@@ -321,26 +325,50 @@ private extension GameSettingsView {
             let currentContainer = try? Wine.getContainerObject(at: currentURL),
             currentContainer.runtimeID == runtimeID
         else {
-            game.launchProfile.container = compatibleContainerURL(
-                for: runtimeID
-            ).map(ContainerReference.init(url:))
-            return
+            game.launchProfile.container = compatibleContainerURL(for: runtimeID)
+                .map(ContainerReference.init(url:))
         }
     }
 
-    var runtimeSelection: Binding<RuntimeID> {
+    var manualRuntimeOverride: Binding<Bool> {
         Binding(
-            get: { game.launchProfile.runtimeID },
+            get: { game.launchProfile.runtimeOverride != nil },
+            set: { enabled in
+                if enabled {
+                    let runtimeID = game.launchProfile.container.flatMap { reference in
+                        (try? Wine.getContainerObject(at: reference.url))?.runtimeID
+                    } ?? game.launchProfile.runtimeID
+
+                    game.launchProfile.runtimeOverride = runtimeID
+
+                    if let containerURL = compatibleContainerURL(for: runtimeID) {
+                        game.launchProfile.container = ContainerReference(url: containerURL)
+                    }
+                } else {
+                    let automaticRuntime = game.launchProfile.container.flatMap { reference in
+                        (try? Wine.getContainerObject(at: reference.url))?.runtimeID
+                    } ?? game.launchProfile.runtimeID
+
+                    game.launchProfile.runtimeID = automaticRuntime
+                    game.launchProfile.runtimeOverride = nil
+                }
+            }
+        )
+    }
+
+    var manualRuntimeSelection: Binding<RuntimeID> {
+        Binding(
+            get: { game.launchProfile.runtimeOverride ?? game.launchProfile.runtimeID },
             set: { newRuntimeID in
-                guard newRuntimeID != game.launchProfile.runtimeID,
-                      Engine.isRuntimeInstalled(newRuntimeID) else {
+                guard Engine.isRuntimeInstalled(newRuntimeID) else {
                     return
                 }
 
-                game.launchProfile.runtimeID = newRuntimeID
-                game.launchProfile.container = compatibleContainerURL(
-                    for: newRuntimeID
-                ).map(ContainerReference.init(url:))
+                game.launchProfile.runtimeOverride = newRuntimeID
+
+                if let containerURL = compatibleContainerURL(for: newRuntimeID) {
+                    game.launchProfile.container = ContainerReference(url: containerURL)
+                }
             }
         )
     }
@@ -422,47 +450,6 @@ extension GameSettingsView {
                     launchArguments.removeAll(where: { $0 == argument })
                     if launchArguments.isEmpty { // FIXME: for `.onChange` not firing when args become empty
                         game.launchArguments = .init()
-                    }
-                }
-            }
-        }
-    }
-    
-    struct ThumbnailURLChangeView: View {
-        @Binding var game: Game
-        @Binding var isPresented: Bool
-
-        @State private var isImageEmpty: Bool = true
-        @State private var imageRefreshFlag: Bool = false
-        
-        func modifyThumbnailURL() {
-            Task {
-                await MainActor.run {
-                    isPresented = false
-                }
-            }
-        }
-        
-        var body: some View {
-            HStack {
-                GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
-                    .aspectRatio(3/4, contentMode: .fill)
-                
-                VStack {
-                    Form {
-                        VStack(alignment: .leading) {
-                            GameCard.ImageURLModifierView(game: $game, imageURL: $game._verticalImageURL)
-                        }
-                    }
-                    .formStyle(.grouped)
-                    
-                    HStack {
-                        Button("Close", action: { isPresented = false })
-                        
-                        Spacer()
-                        
-                        Button("Done", action: { modifyThumbnailURL() })
-                            .buttonStyle(.borderedProminent)
                     }
                 }
             }

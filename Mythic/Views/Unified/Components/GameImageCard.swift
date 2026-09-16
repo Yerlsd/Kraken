@@ -100,15 +100,12 @@ struct GameImageCard: View {
                     .frame(width: geometry.size.width,
                            height: geometry.size.height)
             } else {
-                ContentUnavailableView(
-                    "Image Unavailable",
-                    systemImage: "photo.badge.exclamationmark",
-                    description: .init("""
-                    This game doesn't have an image that Kraken can display in this style.
-                    """)
-                )
-                .frame(width: geometry.size.width,
-                       height: geometry.size.height)
+                Image("KrakenLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .padding(24)
+                    .frame(width: geometry.size.width,
+                           height: geometry.size.height)
             }
         }
         .background(.quinary)
