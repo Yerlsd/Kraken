@@ -334,7 +334,7 @@ extension GameCard {
                 }
                 .sheet(isPresented: $isGameSettingsSheetPresented) {
                     GameSettingsView(game: $game, isPresented: $isGameSettingsSheetPresented)
-                        .frame(width: 700, height: 380)
+                        .frame(width: 1000, height: 760)
                 }
                 .customTransform { view in
                     if #unavailable(macOS 26.0) {
@@ -420,12 +420,6 @@ extension GameCard {
                         .lineLimit(1)
                 }
             }
-
-#if DEBUG
-                                Text("(\(game.id))")
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-#endif // DEBUG
         }
     }
 }

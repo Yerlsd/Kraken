@@ -16,17 +16,27 @@ import AppKit
 /// This is intentionally data-only. Runtime and backend selection will be
 /// introduced separately as Kraken's launcher architecture evolves.
 struct LaunchProfile: Codable, Equatable, Sendable {
+    private var runtimeIDValue: RuntimeID
+    var runtimeOverride: RuntimeID?
     var container: ContainerReference?
-    var runtimeID: RuntimeID
     var launchArguments: [String]
+
+    /// The effective runtime used by existing launch code.
+    /// A manual override takes precedence; otherwise the stored runtime is used.
+    var runtimeID: RuntimeID {
+        get { runtimeOverride ?? runtimeIDValue }
+        set { runtimeIDValue = newValue }
+    }
 
     init(
         container: ContainerReference? = nil,
         runtimeID: RuntimeID = Runtime.current.id,
+        runtimeOverride: RuntimeID? = nil,
         launchArguments: [String] = []
     ) {
         self.container = container
-        self.runtimeID = runtimeID
+        self.runtimeIDValue = runtimeID
+        self.runtimeOverride = runtimeOverride
         self.launchArguments = launchArguments
     }
 
@@ -34,6 +44,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         case container
         case containerURL
         case runtimeID
+        case runtimeOverride
         case launchArguments
     }
 
@@ -41,14 +52,16 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.container = try container.decodeIfPresent(ContainerReference.self, forKey: .container)
             ?? container.decodeIfPresent(URL.self, forKey: .containerURL).map(ContainerReference.init(url:))
-        self.runtimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
+        self.runtimeIDValue = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
+        self.runtimeOverride = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeOverride)
         self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(self.container, forKey: .container)
-        try container.encode(runtimeID, forKey: .runtimeID)
+        try container.encode(runtimeIDValue, forKey: .runtimeID)
+        try container.encodeIfPresent(runtimeOverride, forKey: .runtimeOverride)
         try container.encode(launchArguments, forKey: .launchArguments)
     }
 }
@@ -309,6 +322,7 @@ extension Game: Mergeable {
         .init(\Game.launchProfile, forCodingKey: .launchProfile, strategy: { current, new in
             .init(container: current.container ?? new.container,
                   runtimeID: current.runtimeID,
+                  runtimeOverride: current.runtimeOverride ?? new.runtimeOverride,
                   launchArguments: Array(Set(current.launchArguments + new.launchArguments)))
         }),
         .init(\Game.isFavourited, forCodingKey: .isFavourited, strategy: { $0 || $1 }),
