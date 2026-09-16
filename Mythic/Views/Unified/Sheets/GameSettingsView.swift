@@ -311,6 +311,7 @@ private extension GameSettingsView {
             profile.container = compatibleContainerURL(for: runtimeID)
                 .map(ContainerReference.init(url:))
             game.launchProfile = profile
+            return
         }
     }
 
