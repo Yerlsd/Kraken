@@ -8,70 +8,52 @@
 // Copyright © 2023-2025 vapidinfinity
 
 import SwiftUI
-import Glur
-import Shimmer
 
 struct ListGameCard: View {
     @Binding var game: Game
-    
+
     @State private var isImageEmpty: Bool = true
-    @State private var isCardExpanded: Bool = false
-    
-    static let defaultHeight: CGFloat = 120
-    
+
+    static let defaultHeight: CGFloat = 88
+
     var body: some View {
-        ZStack {
-            GeometryReader { geometry in
-                GameImageCard(url: game.horizontalImageURL, isImageEmpty: $isImageEmpty, withBlur: !isCardExpanded)
-                    .aspectRatio(16/9, contentMode: .fill)
-                    .blur(radius: isCardExpanded ? 0 : 30.0)
-                    .frame(width: geometry.size.width,
-                           height: geometry.size.height,
-                           alignment: .center)
-                    .conditionalTransform(if: isCardExpanded) { view in
-                        view.glur(radius: 18,
-                                  offset: 0.6,
-                                  interpolation: 0.6)
-                    }
+        HStack(spacing: 14) {
+            GameImageCard(
+                url: game.horizontalImageURL,
+                isImageEmpty: $isImageEmpty,
+                withBlur: false
+            )
+            .aspectRatio(16 / 9, contentMode: .fill)
+            .frame(width: 104, height: 64)
+            .clipShape(.rect(cornerRadius: 10))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(game.title)
+                    .font(.headline)
+                    .bold()
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                GameCard.SubscriptedInfoView(game: $game)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
-            
-            HStack {
-                if game.isFallbackImageAvailable, isImageEmpty {
-                    GameImageCard.FallbackGameImageCard(game: $game)
-                        .frame(width: 70, height: 70)
-                }
-                
-                VStack(alignment: .leading) {
-                    Text(game.title)
-                        .font(.system(.title, weight: .bold))
-                    
-                    HStack {
-                        GameCard.SubscriptedInfoView(game: $game)
-                    }
-                }
-                .foregroundStyle(isImageEmpty ? .primary : Color.white)
-                
-                Spacer()
-                
-                HStack {
-                    GameCard.ButtonsView(game: $game)
-                        .clipShape(.capsule)
-                        .foregroundStyle(isImageEmpty ? .primary : Color.white)
-                }
-                .frame(maxWidth: 250, alignment: .trailing) // TODO: match operationcard in terms of progressview width limit
-            }
-            .geometryGroup()
-            .padding()
-            .frame(maxHeight: .infinity, alignment: isCardExpanded ? .bottom : .center)
+            .layoutPriority(1)
+
+            Spacer(minLength: 12)
+
+            GameCard.ButtonsView(game: $game)
+                .clipShape(.capsule)
+                .layoutPriority(1)
         }
-        .frame(height: isCardExpanded ? ListGameCard.defaultHeight * 2 : ListGameCard.defaultHeight)
-        .clipShape(.rect(cornerRadius: 20))
-        .contentShape(.rect(cornerRadius: 20))
-        .onHover { hovering in
-            if !isImageEmpty {
-                withAnimation { isCardExpanded = hovering }
-            }
+        .padding(.horizontal, 14)
+        .frame(maxWidth: .infinity, minHeight: Self.defaultHeight, maxHeight: Self.defaultHeight)
+        .background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.background.secondary)
         }
+        .contentShape(.rect(cornerRadius: 14))
     }
 }
 
