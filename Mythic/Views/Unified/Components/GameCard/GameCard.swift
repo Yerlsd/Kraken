@@ -20,20 +20,25 @@ struct GameCard: View {
 
     var body: some View {
         GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
-            .aspectRatio(3/4, contentMode: .fit)
+            .aspectRatio(3 / 4, contentMode: .fit)
             .overlay(alignment: .bottom) {
-                HStack {
-                    VStack(alignment: .leading) {
-                        GameCard.TitleAndInformationView(game: $game, font: .title3)
+                HStack(spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        GameCard.TitleAndInformationView(
+                            game: $game,
+                            font: .headline
+                        )
                     }
                     .layoutPriority(1)
-                    
+
+                    Spacer(minLength: 4)
+
                     GameCard.ButtonsView(game: $game)
                         .clipShape(.capsule)
                         .progressViewStyle(.circular)
                 }
-                .padding(.horizontal)
-                // conditionally change view foreground style for macOS <26
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
                 .onChange(of: isImageEmpty) {
                     if #unavailable(macOS 26.0) {
                         isImageEmptyPreMacOSTahoe = $1
@@ -42,30 +47,25 @@ struct GameCard: View {
                 .conditionalTransform(if: !isImageEmptyPreMacOSTahoe) { view in
                     view.foregroundStyle(.white)
                 }
-                // use liquid glass on macOS 26+
                 .customTransform { view in
                     if #available(macOS 26.0, *) {
                         view
-                            .padding(.vertical)
-                            .glassEffect(in: .rect(cornerRadius: 20.0))
-                            .padding(4)
+                            .glassEffect(in: .rect(cornerRadius: 14.0))
+                            .padding(6)
                     } else {
                         view
-                            .padding(.bottom)
                             .menuStyle(.borderlessButton)
                             .menuIndicator(.hidden)
+                            .padding(.bottom, 8)
                     }
                 }
             }
             .overlay(alignment: .top) {
-                VStack {
-                    if game.isUpdateAvailable == true {
-                        VStack {
-                            Label("Update available.", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
-                                .help("Update through the game options menu.")
-                        }
-                        .font(.footnote)
-                        .padding(4)
+                if game.isUpdateAvailable == true {
+                    Label("Update available", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
+                        .font(.caption)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .customTransform { view in
                             if #available(macOS 26.0, *) {
                                 view.glassEffect(in: .capsule)
@@ -73,9 +73,8 @@ struct GameCard: View {
                                 view.background(in: .capsule)
                             }
                         }
-                    }
+                        .padding(8)
                 }
-                .padding()
             }
     }
 }
