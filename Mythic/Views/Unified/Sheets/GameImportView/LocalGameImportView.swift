@@ -46,15 +46,15 @@ struct LocalGameImportView: View {
         VStack {
             HStack {
                 VStack {
-                    GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: .constant(false))
+                    GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
                         .aspectRatio(3/4, contentMode: .fit)
                     
-                    Label("Images with a 3:4 aspect ratio are preferred.",
+                    Label("Kraken will use the game's existing artwork when available.",
                           systemImage: "info")
                     .symbolVariant(.circle)
                     .foregroundStyle(.secondary)
-                    .ignoresSafeArea()
                     .font(.footnote)
+                    .multilineTextAlignment(.center)
                 }
                 .padding([.leading, .top])
                 
@@ -105,16 +105,6 @@ struct LocalGameImportView: View {
                             updateGameTitle()
                             game.installationState = .installed(location: $1, platform: platform)
                         }
-                        
-                        GameCard.ImageURLModifierView(
-                            game: .init(get: { return game as Game },
-                                        set: {
-                                            if let castGame = $0 as? LocalGame {
-                                                game = castGame
-                                            }
-                                        }),
-                            imageURL: $game._verticalImageURL
-                        )
                     }
                     .formStyle(.grouped)
                 }
