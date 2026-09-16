@@ -13,31 +13,34 @@ import SwiftUI
 struct GameListView: View {
     @Bindable var viewModel: GameListViewModel = .shared
     @Bindable var gameDataStore: GameDataStore = .shared
-    
+
     @CodableAppStorage("gameListLayout") var layout: GameListViewModel.Layout = .grid
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 240.0
-    
-    @State private var isGameImportViewPresented: Bool = false
-    
+    @AppStorage("gameCardSize") private var gameCardSize: Double = 270.0
+
+    @State private var isGameImportViewPresented = false
+
     private var adaptiveCardWidth: CGFloat {
-        min(max(gameCardSize, 220), 280)
+        min(max(gameCardSize, 250), 340)
     }
-    
+
     var body: some View {
         VStack(spacing: 0) {
             if gameDataStore.library.isEmpty {
-                ContentUnavailableView(
-                    "No games found",
-                    systemImage: "gamecontroller",
-                    description: Text("Games in your library will appear here.")
-                )
-                
-                Button {
-                    isGameImportViewPresented = true
-                } label: {
-                    Label("Import Game", systemImage: "plus.app")
+                VStack(spacing: 14) {
+                    ContentUnavailableView(
+                        "No games found",
+                        systemImage: "gamecontroller",
+                        description: Text("Games in your library will appear here.")
+                    )
+
+                    Button {
+                        isGameImportViewPresented = true
+                    } label: {
+                        Label("Import Game", systemImage: "plus")
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
-                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .sheet(isPresented: $isGameImportViewPresented) {
                     GameImportView(isPresented: $isGameImportViewPresented)
                 }
@@ -48,30 +51,30 @@ struct GameListView: View {
                         LazyVGrid(
                             columns: [
                                 GridItem(
-                                    .adaptive(minimum: adaptiveCardWidth, maximum: 280),
-                                    spacing: 16
+                                    .adaptive(minimum: adaptiveCardWidth, maximum: 340),
+                                    spacing: 18
                                 )
                             ],
-                            spacing: 16
+                            spacing: 18
                         ) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 GameCard(game: .constant(game))
-                                    .frame(maxWidth: 280)
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 16)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 18)
+
                     case .list:
                         LazyVStack(spacing: 8) {
                             ForEach(viewModel.sortedLibrary) { game in
                                 ListGameCard(game: .constant(game))
                             }
                         }
-                        .frame(maxWidth: 980)
+                        .frame(maxWidth: 1080)
                         .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 16)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 18)
                     }
                 }
                 .searchable(
@@ -99,7 +102,7 @@ struct GameListView: View {
         .animation(.default, value: viewModel.sortedLibrary)
     }
 }
-    
+
 #Preview {
     GameListView()
         .environmentObject(NetworkMonitor.shared)
