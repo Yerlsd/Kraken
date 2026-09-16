@@ -1,0 +1,13 @@
+{
+  "images" : [
+    {
+      "filename" : "KrakenLogo.png",
+      "idiom" : "universal",
+      "scale" : "1x"
+    }
+  ],
+  "info" : {
+    "author" : "kraken",
+    "version" : 1
+  }
+}

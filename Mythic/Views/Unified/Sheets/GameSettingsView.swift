@@ -94,7 +94,16 @@ struct GameSettingsView: View {
                             // MARK: Launch Argument Modifier
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text("Launch Arguments")
+                                    Text("Launch options")
+
+                                    Text(
+                                        "Special instructions passed to the game when it starts. "
+                                        + "Most people should leave these alone unless a game "
+                                        + "or compatibility guide tells you to add one."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                     if !game.launchArguments.isEmpty {
                                         ScrollView(.horizontal) {
@@ -138,7 +147,16 @@ struct GameSettingsView: View {
                             // MARK: File Integrity verification button
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text("Verify File Integrity")
+                                    Text("Check game files")
+
+                                    Text(
+                                        "Checks whether the installed game files are intact. "
+                                        + "Useful when a game is crashing, missing files, "
+                                        + "or behaving unexpectedly."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                     if let currentOperation = operationManager.queue.first,
                                        case .repair = currentOperation.type,
@@ -236,8 +254,8 @@ struct GameSettingsView: View {
 
                         // MARK: - Container Settings Section
                         if case .installed(_, let platform) = game.installationState, case .windows = platform {
-                            Section("Runtime & Container", isExpanded: $isContainerSectionExpanded) {
-                                Picker("Runtime", selection: runtimeSelection) {
+                            Section("Windows compatibility", isExpanded: $isContainerSectionExpanded) {
+                                Picker("Windows compatibility", selection: runtimeSelection) {
                                     ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
                                         HStack(spacing: 6) {
                                             Text(runtime.name)
@@ -250,6 +268,15 @@ struct GameSettingsView: View {
                                                       || !Wine.containerObjects.contains(where: { $0.runtimeID == runtime.id }))
                                     }
                                 }
+
+                                
+                                Text(
+                                    "Kraken chooses the Windows compatibility system "
+                                    + "for this game. Most games should use the default."
+                                )
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
 
                                 ContainerSettingsView(
                                     selectedContainerURL: $game.containerURL,
@@ -264,24 +291,56 @@ struct GameSettingsView: View {
             }
         }
         .ignoresSafeArea(edges: .top)
+        .task {
+            ensureCompatibleContainer()
+        }
 
         bottomBar
     }
 }
 
 private extension GameSettingsView {
+    private func compatibleContainerURL(
+        for runtimeID: RuntimeID
+    ) -> URL? {
+        Wine.containerObjects
+            .filter { $0.runtimeID == runtimeID }
+            .sorted {
+                $0.name.localizedStandardCompare($1.name)
+                    == .orderedAscending
+            }
+            .first?
+            .url
+    }
+
+    private func ensureCompatibleContainer() {
+        let runtimeID = game.launchProfile.runtimeID
+
+        guard
+            let currentURL = game.launchProfile.container?.url,
+            let currentContainer = try? Wine.getContainerObject(at: currentURL),
+            currentContainer.runtimeID == runtimeID
+        else {
+            game.launchProfile.container = compatibleContainerURL(
+                for: runtimeID
+            ).map(ContainerReference.init(url:))
+            return
+        }
+    }
+
     var runtimeSelection: Binding<RuntimeID> {
         Binding(
             get: { game.launchProfile.runtimeID },
             set: { newRuntimeID in
                 guard newRuntimeID != game.launchProfile.runtimeID,
-                      Engine.isRuntimeInstalled(newRuntimeID),
-                      let container = Wine.containerObjects.first(where: { $0.runtimeID == newRuntimeID }) else {
+                      Engine.isRuntimeInstalled(newRuntimeID) else {
                     return
                 }
 
                 game.launchProfile.runtimeID = newRuntimeID
-                game.containerURL = container.url
+                game.launchProfile.container = compatibleContainerURL(
+                    for: newRuntimeID
+                ).map(ContainerReference.init(url:))
             }
         )
     }
