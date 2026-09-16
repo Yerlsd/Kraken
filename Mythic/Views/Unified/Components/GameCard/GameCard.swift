@@ -20,7 +20,8 @@ struct GameCard: View {
 
     var body: some View {
         GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
-            .aspectRatio(3 / 4, contentMode: .fit)
+            .aspectRatio(4 / 5, contentMode: .fit)
+            .clipShape(.rect(cornerRadius: 16))
             .overlay(alignment: .bottom) {
                 HStack(spacing: 8) {
                     VStack(alignment: .leading, spacing: 2) {
