@@ -51,11 +51,13 @@ class LocalGameManager {
             }
         }
 
+        let launchProfile: LaunchProfile = game.launchProfile
+
         let operation: GameOperation = .init(game: game, type: .launch) { _ in
             switch platform {
             case .macOS:
                 let configuration: NSWorkspace.OpenConfiguration = .init()
-                configuration.arguments = game.launchArguments
+                configuration.arguments = launchProfile.launchArguments
 
                 guard (try? location.resourceValues(forKeys: [.contentTypeKey]).contentType)?
                     .conforms(to: .bundle) == true else {
@@ -108,23 +110,8 @@ class LocalGameManager {
                 }
 
             case .windows:
-                guard let containerURL = game.containerURL else {
-                    throw Wine.Container.DoesNotExistError()
-                }
-
-                let container = try Wine.getContainerObject(at: containerURL)
-                let runtimeID = game.launchProfile.runtimeOverride ?? container.runtimeID
-
-                guard container.runtimeID == runtimeID else {
-                    throw CocoaError(.coderInvalidValue, userInfo: [
-                        NSLocalizedDescriptionKey:
-                            "The selected runtime does not match the runtime that owns this container."
-                    ])
-                }
-
-                let environment = try Wine.assembleEnvironmentVariables(
-                    forContainerAtURL: container.url
-                )
+                // Single runtime authority, shared with the Epic launch path.
+                let target = try RuntimeResolver.resolve(profile: launchProfile)
 
                 if UserDefaults.standard.bool(forKey: "minimiseOnGameLaunch") {
                     await MainActor.run {
@@ -133,14 +120,8 @@ class LocalGameManager {
                 }
 
                 let process = Process()
-                process.arguments = [location.path] + game.launchArguments
-                process.environment = environment
-
-                try Wine.transformProcess(
-                    process,
-                    containerURL: containerURL,
-                    runtimeID: runtimeID
-                )
+                process.arguments = [location.path] + target.launchArguments
+                RuntimeResolver.configure(process, for: target)
 
                 /*
                  Process is an Objective-C reference type and Swift 6 requires
@@ -191,10 +172,14 @@ class LocalGameManager {
             throw CocoaError(.fileNoSuchFile)
         }
 
-        let operation: GameOperation = .init(game: game, type: .uninstall) {  _ in
+        let operation: GameOperation = .init(game: game, type: .move) {  _ in
             try FileManager.default.moveItem(at: currentLocation, to: newLocation)
-            game.installationState = .installed(location: newLocation, platform: platform)
+            await MainActor.run {
+                game.installationState = .installed(location: newLocation, platform: platform)
+            }
         }
+
+        Game.operationManager.queueOperation(operation)
         return operation
     }
 

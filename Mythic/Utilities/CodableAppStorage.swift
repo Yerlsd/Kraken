@@ -60,10 +60,21 @@ extension CodableAppStorage {
         self.key = key
         self.store = store
         
+        let stored = self.store.decodePersistedValue(Value.self, forKey: key)
         let initialValue: Value
-        if let actualValue = try? self.store.decodeAndGet(Value.self, forKey: key) {
+
+        switch stored {
+        case let .value(actualValue):
             initialValue = actualValue
-        } else {
+        case .malformed:
+            // Leave the undecodable payload in place; seeding the default here
+            // would destroy it.
+            Logger.app.error("""
+                CodableAppStorage found an undecodable value for "\(key, privacy: .public)". \
+                Using the default in memory and leaving the stored payload untouched.
+                """)
+            initialValue = wrappedValue
+        case .absent:
             do {
                 try self.store.encodeAndSet(wrappedValue, forKey: key)
             } catch {
@@ -80,7 +91,8 @@ extension CodableAppStorage {
             wrappedValue: .init(key: key,
                                 defaultValue: wrappedValue,
                                 store: capturedStore,
-                                initialValue: initialValue)
+                                initialValue: initialValue,
+                                isStoredValueMalformed: stored.isMalformed)
         )
         
         self._transaction = .init(initialValue: .init())
@@ -119,7 +131,14 @@ extension CodableAppStorage where Value: ExpressibleByNilLiteral {
 @MainActor
 @usableFromInline final class CodableUserDefaultsObserver<T>: ObservableObject where T: Codable & Equatable {
     @Published public private(set) var value: T
-    
+
+    /// `true` when the store holds a value for `key` that could not be decoded.
+    ///
+    /// While this is set, `value` retains the last good value rather than
+    /// silently reverting to `defaultValue` — the undecodable payload is still
+    /// on disk and callers must not overwrite it with a default.
+    @Published public private(set) var isStoredValueMalformed: Bool = false
+
     private let key: String
     private let defaultValue: T
     private let store: UserDefaults
@@ -132,10 +151,12 @@ extension CodableAppStorage where Value: ExpressibleByNilLiteral {
     }
     
     convenience init(key: String, defaultValue: T, store: UserDefaults = .standard) {
+        let stored = store.decodePersistedValue(T.self, forKey: key)
         self.init(key: key,
                   defaultValue: defaultValue,
                   store: store,
-                  initialValue: (try? store.decodeAndGet(T.self, forKey: key)) ?? defaultValue)
+                  initialValue: stored.decoded ?? defaultValue,
+                  isStoredValueMalformed: stored.isMalformed)
     }
     
     /**
@@ -147,11 +168,16 @@ extension CodableAppStorage where Value: ExpressibleByNilLiteral {
         - store: The `UserDefaults` store to monitor.
         - initialValue: The initial value to use, typically loaded from `UserDefaults` before initialization.
      */
-    public init(key: String, defaultValue: T, store: UserDefaults = .standard, initialValue: T) {
+    public init(key: String,
+                defaultValue: T,
+                store: UserDefaults = .standard,
+                initialValue: T,
+                isStoredValueMalformed: Bool = false) {
         self.key = key
         self.defaultValue = defaultValue
         self.store = store
         self.value = initialValue
+        self.isStoredValueMalformed = isStoredValueMalformed
         
         self.cancellable = NotificationCenter.default
             .publisher(for: UserDefaults.didChangeNotification, object: store)
@@ -162,7 +188,31 @@ extension CodableAppStorage where Value: ExpressibleByNilLiteral {
     }
     
     private func updateFromDefaults() {
-        let newValue: T = (try? store.decodeAndGet(T.self, forKey: key)) ?? defaultValue
+        let newValue: T
+
+        switch store.decodePersistedValue(T.self, forKey: key) {
+        case .absent:
+            newValue = defaultValue
+            if isStoredValueMalformed { isStoredValueMalformed = false }
+        case let .value(decoded):
+            newValue = decoded
+            if isStoredValueMalformed { isStoredValueMalformed = false }
+        case let .malformed(error):
+            /*
+             Real data is present but unreadable. Keep the value we already have
+             so a transient/unknown payload cannot present itself as "empty",
+             and flag it so persistence can refuse to overwrite the payload.
+             */
+            if !isStoredValueMalformed {
+                log.error("""
+                    Stored value for "\(self.key, privacy: .public)" could not be decoded \
+                    and has been left untouched: \(error.localizedDescription, privacy: .public)
+                    """)
+                isStoredValueMalformed = true
+            }
+            return
+        }
+
         guard newValue != value else { return }
         value = newValue
     }

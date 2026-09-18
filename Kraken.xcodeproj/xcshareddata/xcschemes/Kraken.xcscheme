@@ -16,8 +16,8 @@
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "6AB474942AACBBE900AB9C63"
                BuildableName = "Kraken.app"
-               BlueprintName = "Mythic"
-               ReferencedContainer = "container:Mythic.xcodeproj">
+               BlueprintName = "Kraken"
+               ReferencedContainer = "container:Kraken.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -28,6 +28,18 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "CA1100000000000000000010"
+               BuildableName = "KrakenTests.xctest"
+               BlueprintName = "KrakenTests"
+               ReferencedContainer = "container:Kraken.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -50,8 +62,8 @@
                      BuildableIdentifier = "primary"
                      BlueprintIdentifier = "6AB474942AACBBE900AB9C63"
                      BuildableName = "Kraken.app"
-                     BlueprintName = "Mythic"
-                     ReferencedContainer = "container:Mythic.xcodeproj">
+                     BlueprintName = "Kraken"
+                     ReferencedContainer = "container:Kraken.xcodeproj">
                   </BuildableReference>
                </EnvironmentBuildable>
             </ActionContent>
@@ -63,8 +75,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6AB474942AACBBE900AB9C63"
             BuildableName = "Kraken.app"
-            BlueprintName = "Mythic"
-            ReferencedContainer = "container:Mythic.xcodeproj">
+            BlueprintName = "Kraken"
+            ReferencedContainer = "container:Kraken.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -86,8 +98,8 @@
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "6AB474942AACBBE900AB9C63"
             BuildableName = "Kraken.app"
-            BlueprintName = "Mythic"
-            ReferencedContainer = "container:Mythic.xcodeproj">
+            BlueprintName = "Kraken"
+            ReferencedContainer = "container:Kraken.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

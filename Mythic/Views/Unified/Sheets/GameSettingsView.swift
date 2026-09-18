@@ -25,6 +25,8 @@ struct GameSettingsView: View {
     @State private var isGameSectionExpanded = true
     @State private var isCompatibilityOverrideExpanded = false
 
+    @State private var selectedRuntimeID: RuntimeID = .mythicEngine
+
     var body: some View {
         GeometryReader { geometry in
             ScrollView {
@@ -252,7 +254,7 @@ struct GameSettingsView: View {
                                         isOn: manualRuntimeOverride
                                     )
 
-                                    Picker("Runtime", selection: manualRuntimeSelection) {
+                                    Picker("Runtime", selection: $selectedRuntimeID) {
                                         ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
                                             HStack(spacing: 6) {
                                                 Text(runtime.name)
@@ -264,11 +266,32 @@ struct GameSettingsView: View {
                                         }
                                     }
                                     .disabled(game.launchProfile.runtimeOverride == nil)
+                                    .onChange(of: selectedRuntimeID) { oldValue, newValue in
+                                        guard game.launchProfile.runtimeOverride != nil else { return }
+                                        guard Engine.isRuntimeInstalled(newValue) else { return }
+                                        guard oldValue != newValue else { return }
+
+                                        var profile = game.launchProfile
+                                        profile.selectRuntime(newValue)
+                                        profile.container = compatibleContainerURL(for: newValue)
+                                            .map(ContainerReference.init(url:))
+
+                                        print("🐛 [Picker] BEFORE assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
+
+                                        game.launchProfile = profile
+
+                                        print("🐛 [Picker] AFTER assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
+                                        print("🐛 [Picker] About to persist library...")
+
+                                        GameDataStore.shared.persistLibrary()
+
+                                        print("🐛 [Picker] Persist complete. Game in library: \(GameDataStore.shared.library.first(where: { $0.id == game.id })?.launchProfile.runtimeOverride ?? "NOT FOUND")")
+                                    }
 
                                     ContainerSettingsView(
                                         selectedContainerURL: $game.containerURL,
                                         withPicker: true,
-                                        selectedRuntimeID: game.launchProfile.runtimeID
+                                        selectedRuntimeID: game.launchProfile.effectiveRuntimeID
                                     )
                                     .disabled(game.launchProfile.runtimeOverride == nil)
                                 }
@@ -281,7 +304,21 @@ struct GameSettingsView: View {
         }
         .ignoresSafeArea(edges: .top)
         .task {
+            print("🐛 [Task] Settings opened. game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
+            print("🐛 [Task] Game ID: \(game.id)")
+            print("🐛 [Task] About to read from library...")
+            if let canonicalGame = GameDataStore.shared.library.first(where: { $0.id == game.id }) {
+                print("🐛 [Task] Canonical Game runtimeOverride = \(String(describing: canonicalGame.launchProfile.runtimeOverride))")
+            } else {
+                print("🐛 [Task] Game not found in library!")
+            }
+            selectedRuntimeID = game.launchProfile.effectiveRuntimeID
+            print("🐛 [Task] selectedRuntimeID set to: \(selectedRuntimeID)")
             ensureCompatibleContainer()
+            print("🐛 [Task] ensureCompatibleContainer done. game.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
+        }
+        .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
+            selectedRuntimeID = newValue
         }
 
         bottomBar
@@ -300,7 +337,12 @@ private extension GameSettingsView {
     }
 
     func ensureCompatibleContainer() {
-        let runtimeID = game.launchProfile.runtimeID
+        // Don't interfere with manual runtime selection
+        guard game.launchProfile.runtimeOverride == nil else {
+            return
+        }
+
+        let runtimeID = game.launchProfile.effectiveRuntimeID
 
         guard
             let currentURL = game.launchProfile.container?.url,
@@ -324,35 +366,20 @@ private extension GameSettingsView {
                 if enabled {
                     let runtimeID = profile.container.flatMap { reference in
                         (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? profile.runtimeID
+                    } ?? profile.effectiveRuntimeID
 
-                    profile.runtimeOverride = runtimeID
+                    profile.selectRuntime(runtimeID)
                     profile.container = compatibleContainerURL(for: runtimeID)
                         .map(ContainerReference.init(url:))
                 } else {
                     let automaticRuntime = profile.container.flatMap { reference in
                         (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? profile.runtimeID
+                    } ?? profile.effectiveRuntimeID
 
-                    profile.runtimeID = automaticRuntime
-                    profile.runtimeOverride = nil
+                    profile.setDefaultRuntime(automaticRuntime)
+                    profile.clearRuntimeOverride()
                 }
 
-                game.launchProfile = profile
-            }
-        )
-    }
-
-    var manualRuntimeSelection: Binding<RuntimeID> {
-        Binding(
-            get: { game.launchProfile.runtimeOverride ?? game.launchProfile.runtimeID },
-            set: { newRuntimeID in
-                guard Engine.isRuntimeInstalled(newRuntimeID) else { return }
-
-                var profile = game.launchProfile
-                profile.runtimeOverride = newRuntimeID
-                profile.container = compatibleContainerURL(for: newRuntimeID)
-                    .map(ContainerReference.init(url:))
                 game.launchProfile = profile
             }
         )

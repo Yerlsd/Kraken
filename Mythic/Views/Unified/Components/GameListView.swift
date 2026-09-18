@@ -58,7 +58,9 @@ struct GameListView: View {
                             spacing: 18
                         ) {
                             ForEach(viewModel.sortedLibrary) { game in
-                                GameCard(game: .constant(game))
+                                if let binding = gameDataStore.binding(for: game.id) {
+                                    GameCard(game: binding)
+                                }
                             }
                         }
                         .frame(maxWidth: .infinity)
@@ -68,7 +70,9 @@ struct GameListView: View {
                     case .list:
                         LazyVStack(spacing: 8) {
                             ForEach(viewModel.sortedLibrary) { game in
-                                ListGameCard(game: .constant(game))
+                                if let binding = gameDataStore.binding(for: game.id) {
+                                    ListGameCard(game: binding)
+                                }
                             }
                         }
                         .frame(maxWidth: 1080)

@@ -161,14 +161,30 @@ final class Migrator {
 
         /// Updates containers without a default scale set.
         /// Data migration from versions v0.3.2 and below.
+        ///
+        /// This migration predates Engine 3, but it iterates every registered
+        /// container, so it must address each prefix through its own runtime.
+        /// It previously used the legacy Engine 2 Wine path unconditionally,
+        /// which would have run Engine 2's `wine64` against a Wine 11 prefix.
         static func updateContainerScalingIfNecessary() async {
             log.info("Migrating container scaling")
             // If scaling value is 0, it does not have a default scale set.
             for container in Wine.containerObjects where container.settings.scaling == 0 {
                 let defaultScale = Wine.Container.Settings().scaling
+                let runtimeID = container.runtimeID
+
+                guard Engine.isRuntimeInstalled(runtimeID) else {
+                    log.notice("""
+                        Skipping scaling migration for \(container.url.prettyPath): \
+                        its runtime (\(runtimeID.rawValue)) is not installed.
+                        """)
+                    continue
+                }
 
                 do {
-                    try await Wine.setDisplayScaling(containerURL: container.url, dpi: defaultScale)
+                    try await Wine.setDisplayScaling(containerURL: container.url,
+                                                     dpi: defaultScale,
+                                                     runtimeID: runtimeID)
                     container.settings.scaling = defaultScale
                 } catch {
                     log.error("Unable to migrate scaling for container at URL \(container.url.prettyPath): \(error)")

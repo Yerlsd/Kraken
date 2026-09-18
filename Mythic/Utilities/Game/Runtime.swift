@@ -447,16 +447,12 @@ extension Wine {
             throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
         }
 
-        for url in urls {
-            let process = Process()
-            process.executableURL = runtime.wineserverExecutable
-            process.arguments = ["-k"]
-            process.environment = ["WINEPREFIX": url.path]
-            process.qualityOfService = .utility
+        _ = runtime
 
-            try process.run()
-            process.waitUntilExit()
-            try process.checkTerminationStatus()
+        for url in urls {
+            // Delegates to the single implementation; `wineserver -k` exiting
+            // non-zero because no server was running is not a failure.
+            try killServer(at: url, runtimeID: runtimeID)
         }
     }
 

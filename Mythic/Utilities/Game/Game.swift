@@ -15,54 +15,136 @@ import AppKit
 ///
 /// This is intentionally data-only. Runtime and backend selection will be
 /// introduced separately as Kraken's launcher architecture evolves.
+/// Per-game configuration describing how the game should be launched.
+///
+/// Runtime selection has exactly two meanings, and they are kept distinct:
+///
+/// - **Automatic** (`runtimeOverride == nil`): the game runs on `defaultRuntimeID`.
+///   This is the runtime the game was created with. Nothing but explicit intent
+///   changes it — in particular, an Epic metadata refresh must not.
+/// - **Manual** (`runtimeOverride != nil`): the game runs on `runtimeOverride`.
+///   `defaultRuntimeID` is left untouched, so turning manual mode off always
+///   restores the original automatic runtime.
+///
+/// `effectiveRuntimeID` is deliberately read-only. Runtime changes go through
+/// `selectRuntime(_:)`, `clearRuntimeOverride()` or `setDefaultRuntime(_:)` so
+/// that no caller can accidentally promote an override into the stored default.
 struct LaunchProfile: Codable, Equatable, Sendable {
-    private var runtimeIDValue: RuntimeID
-    var runtimeOverride: RuntimeID?
+    /// Runtime used when the user has not made a manual choice.
+    private(set) var defaultRuntimeID: RuntimeID
+
+    /// The user's explicit manual runtime choice. `nil` means Automatic.
+    private(set) var runtimeOverride: RuntimeID?
+
     var container: ContainerReference?
     var launchArguments: [String]
 
-    /// The effective runtime used by existing launch code.
-    /// A manual override takes precedence; otherwise the stored runtime is used.
-    var runtimeID: RuntimeID {
-        get { runtimeOverride ?? runtimeIDValue }
-        set { runtimeIDValue = newValue }
+    /// Graphics backend selection for Wine 11 games.
+    var graphicsBackend: GraphicsBackend
+
+    /// Last backend that successfully launched this game.
+    /// Used by automatic selection to prefer previously working backends.
+    private(set) var lastSuccessfulBackend: GraphicsBackend?
+
+    /// The runtime that will actually be used to launch this game.
+    ///
+    /// Read-only: a manual override takes precedence, otherwise the stored
+    /// default is used. Mutate via the explicit runtime methods below.
+    var effectiveRuntimeID: RuntimeID { runtimeOverride ?? defaultRuntimeID }
+
+    /// `true` when the user has pinned this game to a specific runtime.
+    var isManualRuntimeSelection: Bool { runtimeOverride != nil }
+
+    /// Pin this game to `runtimeID`. Does not touch `defaultRuntimeID`.
+    mutating func selectRuntime(_ runtimeID: RuntimeID) {
+        runtimeOverride = runtimeID
+    }
+
+    /// Return to Automatic. `defaultRuntimeID` is restored unchanged.
+    mutating func clearRuntimeOverride() {
+        runtimeOverride = nil
+    }
+
+    /// Change the runtime used in Automatic mode. Explicit callers only.
+    mutating func setDefaultRuntime(_ runtimeID: RuntimeID) {
+        defaultRuntimeID = runtimeID
     }
 
     init(
         container: ContainerReference? = nil,
-        runtimeID: RuntimeID = Runtime.current.id,
+        defaultRuntimeID: RuntimeID = Runtime.current.id,
         runtimeOverride: RuntimeID? = nil,
-        launchArguments: [String] = []
+        launchArguments: [String] = [],
+        graphicsBackend: GraphicsBackend = .automatic,
+        lastSuccessfulBackend: GraphicsBackend? = nil
     ) {
         self.container = container
-        self.runtimeIDValue = runtimeID
+        self.defaultRuntimeID = defaultRuntimeID
         self.runtimeOverride = runtimeOverride
         self.launchArguments = launchArguments
+        self.graphicsBackend = graphicsBackend
+        self.lastSuccessfulBackend = lastSuccessfulBackend
     }
 
+    /// Select a specific graphics backend for this game.
+    mutating func selectGraphicsBackend(_ backend: GraphicsBackend) {
+        graphicsBackend = backend
+    }
+
+    /// Record that a backend successfully launched this game.
+    mutating func recordSuccessfulLaunch(backend: GraphicsBackend) {
+        lastSuccessfulBackend = backend
+    }
+
+    /// Merge two argument lists preserving first-occurrence order.
+    ///
+    /// A command line is ordered, so `Set` must never be used here; deduplication
+    /// is only applied where it cannot move an argument relative to its neighbours.
+    static func mergeLaunchArguments(_ current: [String], _ new: [String]) -> [String] {
+        var seen: Set<String> = .init()
+        var merged: [String] = []
+        merged.reserveCapacity(current.count + new.count)
+
+        for argument in current + new where seen.insert(argument).inserted {
+            merged.append(argument)
+        }
+
+        return merged
+    }
+
+    // On-disk format is unchanged: `runtimeID` still stores the automatic
+    // runtime, so existing libraries decode without migration.
     private enum CodingKeys: String, CodingKey {
         case container
         case containerURL
         case runtimeID
         case runtimeOverride
         case launchArguments
+        case graphicsBackend
+        case lastSuccessfulBackend
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.container = try container.decodeIfPresent(ContainerReference.self, forKey: .container)
             ?? container.decodeIfPresent(URL.self, forKey: .containerURL).map(ContainerReference.init(url:))
-        self.runtimeIDValue = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
+        self.defaultRuntimeID = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeID) ?? .mythicEngine
         self.runtimeOverride = try container.decodeIfPresent(RuntimeID.self, forKey: .runtimeOverride)
-        self.launchArguments = try container.decode([String].self, forKey: .launchArguments)
+        // Lenient: a profile written before launch arguments existed must still
+        // decode rather than failing the whole library.
+        self.launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
+        self.graphicsBackend = try container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend) ?? .automatic
+        self.lastSuccessfulBackend = try container.decodeIfPresent(GraphicsBackend.self, forKey: .lastSuccessfulBackend)
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encodeIfPresent(self.container, forKey: .container)
-        try container.encode(runtimeIDValue, forKey: .runtimeID)
+        try container.encode(defaultRuntimeID, forKey: .runtimeID)
         try container.encodeIfPresent(runtimeOverride, forKey: .runtimeOverride)
         try container.encode(launchArguments, forKey: .launchArguments)
+        try container.encode(graphicsBackend, forKey: .graphicsBackend)
+        try container.encodeIfPresent(lastSuccessfulBackend, forKey: .lastSuccessfulBackend)
     }
 }
 
@@ -139,10 +221,10 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         self.launchProfile = try container.decodeIfPresent(LaunchProfile.self, forKey: .launchProfile)
             ?? .init(
                 container: legacyContainerURL.map(ContainerReference.init(url:)),
-                runtimeID: .mythicEngine,
+                defaultRuntimeID: .mythicEngine,
                 launchArguments: legacyLaunchArguments ?? []
             )
-        self.isFavourited = try container.decode(Bool.self, forKey: .isFavourited)
+        self.isFavourited = try container.decodeIfPresent(Bool.self, forKey: .isFavourited) ?? false
         self.lastLaunched = try container.decodeIfPresent(Date.self, forKey: .lastLaunched)
     }
 
@@ -320,10 +402,21 @@ extension Game: Mergeable {
         .init(\Game._verticalImageURL, forCodingKey: ._verticalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game._horizontalImageURL, forCodingKey: ._horizontalImageURL, strategy: { $1 ?? $0 }),
         .init(\Game.launchProfile, forCodingKey: .launchProfile, strategy: { current, new in
+            /*
+             A storefront refresh carries no runtime opinion, so every runtime
+             decision is taken verbatim from `current`. Reading the effective
+             runtime here (as this rule previously did) promoted a manual
+             override into `defaultRuntimeID`, which permanently stranded the
+             game on that runtime once the override was switched off.
+             Refreshes are therefore idempotent with respect to runtime state.
+             */
             .init(container: current.container ?? new.container,
-                  runtimeID: current.runtimeID,
-                  runtimeOverride: current.runtimeOverride ?? new.runtimeOverride,
-                  launchArguments: Array(Set(current.launchArguments + new.launchArguments)))
+                  defaultRuntimeID: current.defaultRuntimeID,
+                  runtimeOverride: current.runtimeOverride,
+                  launchArguments: LaunchProfile.mergeLaunchArguments(
+                      current.launchArguments,
+                      new.launchArguments
+                  ))
         }),
         .init(\Game.isFavourited, forCodingKey: .isFavourited, strategy: { $0 || $1 }),
         AnyMergeRule(\Game.lastLaunched, forCodingKey: .lastLaunched) { current, new in

@@ -532,52 +532,32 @@ final class Legendary {
             throw CocoaError(.fileNoSuchFile)
         }
 
-        let operation: GameOperation = .init(game: game, type: .launch) { _ in
-            guard let containerURL = game.containerURL else { throw Wine.Container.DoesNotExistError() }
+        let launchProfile: LaunchProfile = game.launchProfile
+        let gameID: String = game.id
+        let isVerificationRequired: Bool = game.isFileVerificationRequired == true
 
-            var arguments: [String] = ["launch", game.id]
+        let operation: GameOperation = .init(game: game, type: .launch) { _ in
+            var arguments: [String] = ["launch", gameID]
             var environment: [String: String] = .init()
 
-            guard game.isFileVerificationRequired != true else { throw EpicGamesGame.VerificationRequiredError() }
+            guard !isVerificationRequired else { throw EpicGamesGame.VerificationRequiredError() }
 
             // uses legendary's native launch process
             switch platform {
             case .macOS:
                 do {} // no environment variables need to be assembled.
             case .windows:
-                let runtimeID = game.launchProfile.runtimeID
-                let container = try Wine.getContainerObject(at: containerURL)
-
-                guard container.runtimeID == runtimeID else {
-                    throw CocoaError(.coderInvalidValue, userInfo: [
-                        NSLocalizedDescriptionKey: "The selected runtime does not match the runtime that owns this container."
-                    ])
-                }
-
-                guard Engine.isRuntimeInstalled(runtimeID) else {
-                    throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
-                }
-
-                environment = try Wine.assembleEnvironmentVariables(forContainerAtURL: containerURL)
-                // legendary requires this, since it calls wine directly.
-                environment["WINEPREFIX"] = containerURL.path(percentEncoded: false)
-
-                let runtime = Engine.wineRuntime(for: runtimeID)
-                arguments += ["--wine", runtime.wineExecutable.path]
-
-                if runtimeID == .wine11 {
-                    environment["WINESERVER"] = runtime.wineserverExecutable.path
-                    environment["WINELOADER"] = runtime.wineExecutable.path
-                    environment["WINE"] = runtime.wineExecutable.path
-                    environment["WINE64"] = runtime.wineExecutable.path
-
-                    if let bundleURL = runtime.wineBundleURL {
-                        environment["WINE_APP_BUNDLE"] = bundleURL.path
-                    }
-                }
+                /*
+                 Same resolver, same rule as the local launch path. Legendary
+                 invokes wine itself, so it needs the resolved loader passed
+                 through `--wine` in addition to the resolved environment.
+                 */
+                let target = try RuntimeResolver.resolve(profile: launchProfile)
+                environment = target.environment
+                arguments += ["--wine", target.runtime.wineExecutable.path]
             }
 
-            arguments.append(contentsOf: game.launchArguments.map({ "'\($0)'" }))
+            arguments.append(contentsOf: launchProfile.launchArguments.map({ "'\($0)'" }))
 
             let process: Process = .init()
             process.arguments = arguments

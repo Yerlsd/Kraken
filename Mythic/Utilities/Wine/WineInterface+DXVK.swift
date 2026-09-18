@@ -11,9 +11,32 @@ import Foundation
 
 extension Wine {
     final class DXVK {
+        /// Thrown when DXVK installation is attempted on a non-Engine 2 prefix.
+        struct UnsupportedRuntimeError: LocalizedError {
+            let runtimeID: RuntimeID
+
+            var errorDescription: String? {
+                String(localized: """
+                    Kraken only ships DXVK for \(Runtime.mythicEngine.name). \
+                    This Windows environment belongs to \(Runtime.displayName(for: runtimeID)).
+                    """)
+            }
+        }
+
         /// Replaces the Engine’s DirectX DLLs in the specified Wine container with their DXVK equivalents.
         static func install(toContainerAtURL containerURL: URL) async throws {
-            try Wine.killAll(at: containerURL)
+            /*
+             The DLLs copied below come out of `Engine.directory/DXVK`, so this
+             is an Engine 2-only operation. Enforce that here rather than
+             relying on UI gating — otherwise a Wine 11 prefix would have its
+             d3d DLLs deleted and replaced with Engine 2's.
+             */
+            let container = try Wine.getContainerObject(at: containerURL)
+            guard container.runtimeID == .mythicEngine else {
+                throw UnsupportedRuntimeError(runtimeID: container.runtimeID)
+            }
+
+            try Wine.killServer(at: containerURL, runtimeID: .mythicEngine)
 
             // remove existing d3d dlls
             // x64

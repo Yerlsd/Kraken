@@ -249,21 +249,68 @@ final class Wine { // TODO: https://forum.winehq.org/viewtopic.php?t=15416
         containerURLs.remove(containerURL)
     }
 
+    /// Terminate the wineserver owning each given prefix.
+    ///
+    /// With no arguments this covers every registered container, which is why it
+    /// must be runtime-aware: each prefix is shut down with the wineserver of
+    /// the runtime that actually owns it. The previous implementation reused a
+    /// single `Process` across detached tasks, mutated its environment
+    /// concurrently, and always used Engine 2's wineserver — so it could raise
+    /// an Objective-C "task already launched" exception (fatal, given
+    /// `NSApplicationCrashOnExceptions`) and point Engine 2 at Wine 11 prefixes.
+    ///
+    /// - Note: Synchronous by design — `applicationWillTerminate` has no
+    ///   opportunity to await. Call off the main actor where the caller can.
     static func killAll(at urls: URL...) throws {
-        let process: Process = .init()
-        process.executableURL = Engine.directory.appending(path: "wine/bin/wineserver")
-        process.arguments = ["-k"]
+        try killAll(containerURLs: urls.isEmpty ? .init(containerURLs) : urls)
+    }
 
-        let urls: [URL] = urls.isEmpty ? .init(containerURLs) : urls
-        
+    static func killAll(containerURLs urls: [URL]) throws {
+        var thrown: [Error] = []
+
         for url in urls {
-            Task {
-                process.environment = ["WINEPREFIX": url.path]
-                process.qualityOfService = .utility
-                
-                try process.run()
+            /*
+             The prefix itself declares its owning runtime. If that cannot be
+             read we skip rather than guess: shutting a Wine 11 prefix down with
+             Engine 2's wineserver is exactly the cross-runtime damage this
+             function used to cause.
+             */
+            guard let container = try? getContainerObject(at: url) else {
+                log.error("\(formatLog(containerURL: url, description: "Skipping shutdown; owning runtime is unknown"))")
+                continue
+            }
+
+            do {
+                try killServer(at: url, runtimeID: container.runtimeID)
+            } catch {
+                log.error("\(formatLog(containerURL: url, description: "Unable to shut down wineserver", error: error))")
+                thrown.append(error)
             }
         }
+
+        if let first = thrown.first { throw first }
+    }
+
+    /// Shut down a single prefix's wineserver using a fresh process.
+    static func killServer(at containerURL: URL, runtimeID: RuntimeID) throws {
+        guard Engine.isRuntimeInstalled(runtimeID) else {
+            throw Engine.RuntimeNotInstalledError(runtimeID: runtimeID)
+        }
+
+        // One Process per invocation: Process cannot be relaunched.
+        let process: Process = .init()
+        process.executableURL = Engine.wineRuntime(for: runtimeID).wineserverExecutable
+        process.arguments = ["-k"]
+        process.environment = ["WINEPREFIX": containerURL.path(percentEncoded: false)]
+        process.qualityOfService = .utility
+
+        try process.run()
+        process.waitUntilExit()
+
+        /*
+         `wineserver -k` exits non-zero when there was no server to kill, which
+         is the common case and not a failure. Only a launch failure is an error.
+         */
     }
 
     static func purgeD3DMetalShaderCache() throws {

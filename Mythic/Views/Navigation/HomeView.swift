@@ -61,7 +61,9 @@ struct HomeView: View {
                                     spacing: 14
                                 ) {
                                     ForEach(favouriteGamesExcludingRecent) { game in
-                                        GameCard(game: .constant(game))
+                                        if let binding = gameDataStore.binding(for: game.id) {
+                                            GameCard(game: binding)
+                                        }
                                     }
                                 }
                                 .padding(.vertical, 6)
