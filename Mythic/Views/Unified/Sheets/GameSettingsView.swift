@@ -326,6 +326,10 @@ struct GameSettingsView: View {
 }
 
 private extension GameSettingsView {
+    var availableGraphicsBackends: Set<GraphicsBackend> {
+        GraphicsBackendDetector.availableBackends(for: game.launchProfile.effectiveRuntimeID)
+    }
+
     func compatibleContainerURL(for runtimeID: RuntimeID) -> URL? {
         Wine.containerObjects
             .filter { $0.runtimeID == runtimeID }
