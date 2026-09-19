@@ -539,7 +539,6 @@ final class Legendary {
         let operation: GameOperation = .init(game: game, type: .launch) { _ in
             var arguments: [String] = ["launch", gameID]
             var environment: [String: String] = .init()
-            var resolvedBackend: GraphicsBackend?
 
             guard !isVerificationRequired else { throw EpicGamesGame.VerificationRequiredError() }
 
@@ -554,7 +553,6 @@ final class Legendary {
                  through `--wine` in addition to the resolved environment.
                  */
                 let target = try RuntimeResolver.resolve(profile: launchProfile)
-                resolvedBackend = target.graphicsBackend
                 environment = target.environment
                 arguments += ["--wine", target.runtime.wineExecutable.path]
             }
@@ -573,12 +571,6 @@ final class Legendary {
                 try process.run()
                 
                 try handleCLIErrorOutput(fromStandardErrorPipe: processStandardErrorPipe)
-
-                if let resolvedBackend {
-                    await MainActor.run {
-                        game.launchProfile.recordSuccessfulLaunch(backend: resolvedBackend)
-                    }
-                }
             } onCancel: {
                 // FIXME: legendary will spawn wine completely detached from the cli itself
                 // FIXME: because of this, terminating the process used to launch it will NOT
