@@ -133,11 +133,11 @@ extension Wine.Container {
 
         init(metalHUD: Bool = false,
              msync: Bool = true,
-             retinaMode: Bool = false,
+             retinaMode: Bool = true,
              dxvk: Bool = false,
              dxvkAsync: Bool = false,
              windowsVersion: Wine.WindowsVersion = .win11,
-             scaling: Int = 96,
+             scaling: Int = 192,
              avx2: Bool = true) {
             self.metalHUD = metalHUD
             self.msync = msync
