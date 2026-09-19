@@ -276,16 +276,9 @@ struct GameSettingsView: View {
                                         profile.container = compatibleContainerURL(for: newValue)
                                             .map(ContainerReference.init(url:))
 
-                                        print("🐛 [Picker] BEFORE assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
 
                                         game.launchProfile = profile
 
-                                        print("🐛 [Picker] AFTER assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-                                        print("🐛 [Picker] About to persist library...")
-
-                                        GameDataStore.shared.persistLibrary()
-
-                                        print("🐛 [Picker] Persist complete. Game in library: \(GameDataStore.shared.library.first(where: { $0.id == game.id })?.launchProfile.runtimeOverride ?? "NOT FOUND")")
                                     }
 
                                     ContainerSettingsView(
@@ -304,18 +297,11 @@ struct GameSettingsView: View {
         }
         .ignoresSafeArea(edges: .top)
         .task {
-            print("🐛 [Task] Settings opened. game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-            print("🐛 [Task] Game ID: \(game.id)")
-            print("🐛 [Task] About to read from library...")
             if let canonicalGame = GameDataStore.shared.library.first(where: { $0.id == game.id }) {
-                print("🐛 [Task] Canonical Game runtimeOverride = \(String(describing: canonicalGame.launchProfile.runtimeOverride))")
             } else {
-                print("🐛 [Task] Game not found in library!")
             }
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
-            print("🐛 [Task] selectedRuntimeID set to: \(selectedRuntimeID)")
             ensureCompatibleContainer()
-            print("🐛 [Task] ensureCompatibleContainer done. game.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue
