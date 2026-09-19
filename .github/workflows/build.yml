@@ -5,6 +5,7 @@ on:
       - '.github/workflows/build.yml'
       - 'Kraken.xcodeproj/**'
       - 'Mythic/**'
+      - 'KrakenTests/**'
   pull_request:
     paths: *workflow_paths
   workflow_dispatch:
