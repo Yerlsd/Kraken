@@ -26,6 +26,7 @@ struct GameSettingsView: View {
     @State private var isCompatibilityOverrideExpanded = false
 
     @State private var selectedRuntimeID: RuntimeID = .mythicEngine
+    @State private var selectedGraphicsBackend: GraphicsBackend = .automatic
 
     var body: some View {
         GeometryReader { geometry in
@@ -268,25 +269,73 @@ struct GameSettingsView: View {
                                     .disabled(game.launchProfile.runtimeOverride == nil)
                                     .onChange(of: selectedRuntimeID) { oldValue, newValue in
                                         guard game.launchProfile.runtimeOverride != nil else { return }
-                                        guard Engine.isRuntimeInstalled(newValue) else { return }
-                                        guard oldValue != newValue else { return }
+                                        guard Engine.isRuntimeInstalled(newValue), oldValue != newValue else {
+                                            selectedRuntimeID = oldValue
+                                            return
+                                        }
 
                                         var profile = game.launchProfile
                                         profile.selectRuntime(newValue)
                                         profile.container = compatibleContainerURL(for: newValue)
                                             .map(ContainerReference.init(url:))
-
-                                        print("🐛 [Picker] BEFORE assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-
                                         game.launchProfile = profile
-
-                                        print("🐛 [Picker] AFTER assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-                                        print("🐛 [Picker] About to persist library...")
-
-                                        GameDataStore.shared.persistLibrary()
-
-                                        print("🐛 [Picker] Persist complete. Game in library: \(GameDataStore.shared.library.first(where: { $0.id == game.id })?.launchProfile.runtimeOverride ?? "NOT FOUND")")
                                     }
+
+                                    Picker("Graphics", selection: $selectedGraphicsBackend) {
+                                        Text(GraphicsBackend.automatic.displayName)
+                                            .tag(GraphicsBackend.automatic)
+
+                                        ForEach(GraphicsBackend.allCases.filter { $0 != .automatic }, id: \.self) { backend in
+                                            let available = GraphicsBackendDetector.availableBackends(
+                                                for: game.launchProfile.effectiveRuntimeID
+                                            ).contains(backend)
+
+                                            HStack(spacing: 6) {
+                                                Text(backend.displayName)
+                                                if !available {
+                                                    Text("Unavailable")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            .tag(backend)
+                                        }
+                                    }
+                                    .disabled(game.launchProfile.runtimeOverride == nil)
+                                    .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
+                                        guard oldValue != newValue else { return }
+
+                                        let runtimeID = game.launchProfile.effectiveRuntimeID
+                                        if newValue != .automatic,
+                                           !GraphicsBackendDetector.availableBackends(for: runtimeID).contains(newValue) {
+                                            selectedGraphicsBackend = oldValue
+                                            return
+                                        }
+
+                                        var profile = game.launchProfile
+                                        profile.selectGraphicsBackend(newValue)
+                                        game.launchProfile = profile
+                                    }
+
+                                    Text(
+                                        selectedGraphicsBackend == .automatic
+                                            ? "Kraken selects an available graphics backend automatically."
+                                            : GraphicsBackendDetector.availableBackends(
+                                                for: game.launchProfile.effectiveRuntimeID
+                                            ).contains(selectedGraphicsBackend)
+                                                ? "Kraken will use the selected backend for this game."
+                                                : "The selected backend is unavailable for the current runtime and launch will fail until it is changed."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(
+                                        selectedGraphicsBackend == .automatic
+                                            || GraphicsBackendDetector.availableBackends(
+                                                for: game.launchProfile.effectiveRuntimeID
+                                            ).contains(selectedGraphicsBackend)
+                                                ? .secondary
+                                                : .orange
+                                    )
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                     ContainerSettingsView(
                                         selectedContainerURL: $game.containerURL,
@@ -304,21 +353,13 @@ struct GameSettingsView: View {
         }
         .ignoresSafeArea(edges: .top)
         .task {
-            print("🐛 [Task] Settings opened. game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-            print("🐛 [Task] Game ID: \(game.id)")
-            print("🐛 [Task] About to read from library...")
-            if let canonicalGame = GameDataStore.shared.library.first(where: { $0.id == game.id }) {
-                print("🐛 [Task] Canonical Game runtimeOverride = \(String(describing: canonicalGame.launchProfile.runtimeOverride))")
-            } else {
-                print("🐛 [Task] Game not found in library!")
-            }
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
-            print("🐛 [Task] selectedRuntimeID set to: \(selectedRuntimeID)")
+            selectedGraphicsBackend = game.launchProfile.graphicsBackend
             ensureCompatibleContainer()
-            print("🐛 [Task] ensureCompatibleContainer done. game.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue
+            selectedGraphicsBackend = game.launchProfile.graphicsBackend
         }
 
         bottomBar
