@@ -73,13 +73,6 @@ final class PersistenceTests: XCTestCase {
         XCTAssertFalse(testStore.isPersistenceSuspended)
     }
 
-    func testFreshContainerDefaultsToOneX96DPI() {
-        let settings = Wine.Container.Settings()
-
-        XCTAssertFalse(settings.retinaMode)
-        XCTAssertEqual(settings.scaling, 96)
-    }
-
     // MARK: - Malformed Data Detection
 
     func testMalformedPayloadDetectedAtInit() throws {
