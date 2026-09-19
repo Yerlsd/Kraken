@@ -26,6 +26,7 @@ struct GameSettingsView: View {
     @State private var isCompatibilityOverrideExpanded = false
 
     @State private var selectedRuntimeID: RuntimeID = .mythicEngine
+    @State private var selectedGraphicsBackend: GraphicsBackend = .automatic
 
     var body: some View {
         GeometryReader { geometry in
@@ -268,18 +269,57 @@ struct GameSettingsView: View {
                                     .disabled(game.launchProfile.runtimeOverride == nil)
                                     .onChange(of: selectedRuntimeID) { oldValue, newValue in
                                         guard game.launchProfile.runtimeOverride != nil else { return }
-                                        guard Engine.isRuntimeInstalled(newValue) else { return }
-                                        guard oldValue != newValue else { return }
+                                        guard Engine.isRuntimeInstalled(newValue), oldValue != newValue else {
+                                            selectedRuntimeID = oldValue
+                                            return
+                                        }
 
                                         var profile = game.launchProfile
                                         profile.selectRuntime(newValue)
                                         profile.container = compatibleContainerURL(for: newValue)
                                             .map(ContainerReference.init(url:))
-
-
                                         game.launchProfile = profile
-
                                     }
+
+                                    Picker("Graphics", selection: $selectedGraphicsBackend) {
+                                        Text(GraphicsBackend.automatic.displayName)
+                                            .tag(GraphicsBackend.automatic)
+
+                                        ForEach(GraphicsBackend.allCases.filter { $0 != .automatic }, id: \.self) { backend in
+                                            HStack(spacing: 6) {
+                                                Text(backend.displayName)
+                                                if !availableGraphicsBackends.contains(backend) {
+                                                    Text("Unavailable")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            .tag(backend)
+                                        }
+                                    }
+                                    .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
+                                        guard oldValue != newValue else { return }
+
+                                        if newValue != .automatic && !availableGraphicsBackends.contains(newValue) {
+                                            selectedGraphicsBackend = oldValue
+                                            return
+                                        }
+
+                                        var profile = game.launchProfile
+                                        profile.selectGraphicsBackend(newValue)
+                                        game.launchProfile = profile
+                                    }
+
+                                    Text(
+                                        selectedGraphicsBackend == .automatic
+                                            ? "Kraken selects an available graphics backend automatically."
+                                            : availableGraphicsBackends.contains(selectedGraphicsBackend)
+                                                ? "Kraken will use the selected backend for this game."
+                                                : "The selected backend is unavailable for the current runtime and launch will fail until it is changed."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                     ContainerSettingsView(
                                         selectedContainerURL: $game.containerURL,
