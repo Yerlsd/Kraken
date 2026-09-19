@@ -33,11 +33,46 @@ jobs:
           -jobs $(sysctl -n hw.ncpu) \
           -verbose
 
-    - run: |
+    - name: Test GraphicsBackendTests
+      run: |
         xcodebuild -project Kraken.xcodeproj -scheme Kraken \
           -destination 'platform=macOS' \
           CODE_SIGNING_ALLOWED=NO \
           SWIFTLINT=NO \
           -parallel-testing-enabled YES \
           -jobs $(sysctl -n hw.ncpu) \
+          -only-testing:KrakenTests/GraphicsBackendTests \
+          test
+
+    - name: Test LaunchProfileMergeTests
+      run: |
+        xcodebuild -project Kraken.xcodeproj -scheme Kraken \
+          -destination 'platform=macOS' \
+          CODE_SIGNING_ALLOWED=NO \
+          SWIFTLINT=NO \
+          -parallel-testing-enabled YES \
+          -jobs $(sysctl -n hw.ncpu) \
+          -only-testing:KrakenTests/LaunchProfileMergeTests \
+          test
+
+    - name: Test PersistenceTests
+      run: |
+        xcodebuild -project Kraken.xcodeproj -scheme Kraken \
+          -destination 'platform=macOS' \
+          CODE_SIGNING_ALLOWED=NO \
+          SWIFTLINT=NO \
+          -parallel-testing-enabled YES \
+          -jobs $(sysctl -n hw.ncpu) \
+          -only-testing:KrakenTests/PersistenceTests \
+          test
+
+    - name: Test RuntimeResolverTests
+      run: |
+        xcodebuild -project Kraken.xcodeproj -scheme Kraken \
+          -destination 'platform=macOS' \
+          CODE_SIGNING_ALLOWED=NO \
+          SWIFTLINT=NO \
+          -parallel-testing-enabled YES \
+          -jobs $(sysctl -n hw.ncpu) \
+          -only-testing:KrakenTests/RuntimeResolverTests \
           test
