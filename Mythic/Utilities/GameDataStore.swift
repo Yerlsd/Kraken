@@ -374,7 +374,11 @@ import OSLog
                 self.library.first(where: { $0.id == gameID })!
             },
             set: { updatedGame in
-                self.library.remove(game)
+                guard let currentGame = self.library.first(where: { $0.id == gameID }) else {
+                    return
+                }
+
+                self.library.remove(currentGame)
                 self.library.insert(updatedGame)
             }
         )
