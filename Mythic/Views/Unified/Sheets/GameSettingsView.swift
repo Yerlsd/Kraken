@@ -301,7 +301,6 @@ struct GameSettingsView: View {
                                             .tag(backend)
                                         }
                                     }
-                                    .disabled(game.launchProfile.runtimeOverride == nil)
                                     .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
                                         guard oldValue != newValue else { return }
 
