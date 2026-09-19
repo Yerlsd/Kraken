@@ -44,12 +44,13 @@ struct GraphicsBackendDetector {
 
             let dxvkPath = bundleURL.appending(path: "Contents/Resources/wine/lib/wine/x86_64-windows/d3d11.dll")
 
-            // Check if it's a DXVK DLL (different size/signature than Wine's built-in)
             guard FileManager.default.fileExists(atPath: dxvkPath.path) else { return false }
 
-            // TODO: Distinguish DXVK DLL from Wine's built-in d3d11.dll
-            // For now, assume Wine 11 does not bundle DXVK
-            return false
+            // Wine's built-in d3d11.dll and DXVK's d3d11.dll can occupy the same
+            // path. Check the binary for DXVK's embedded product marker rather than
+            // treating mere file presence as proof that the translation layer exists.
+            guard let data = try? Data(contentsOf: dxvkPath) else { return false }
+            return data.range(of: Data("DXVK".utf8)) != nil
         }
     }
 
