@@ -141,6 +141,10 @@ class LocalGameManager {
 
                 try process.run()
 
+                await MainActor.run {
+                    game.launchProfile.recordSuccessfulLaunch(backend: target.graphicsBackend)
+                }
+
                 try await withTaskCancellationHandler {
                     await withCheckedContinuation { continuation in
                         processBox.value.terminationHandler = { _ in
