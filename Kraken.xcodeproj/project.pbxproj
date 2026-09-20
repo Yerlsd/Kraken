@@ -146,6 +146,8 @@
 		CA2200000000000000000010 /* HardwareCapabilities.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000009 /* HardwareCapabilities.swift */; };
 		CA2200000000000000000012 /* ReportedGPUMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000011 /* ReportedGPUMemory.swift */; };
 		CA2200000000000000000014 /* ReportedGPUMemoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000013 /* ReportedGPUMemoryTests.swift */; };
+		CA2200000000000000000016 /* RuntimeRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000015 /* RuntimeRegistry.swift */; };
+		CA2200000000000000000018 /* RuntimeIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000017 /* RuntimeIsolationTests.swift */; };
 		DF33D5E97B6044AD8C6F582C /* GraphicsBackendDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C958 /* GraphicsBackendDetector.swift */; };
 		DF33D5E97B6044AD8C6F583A /* GPTKInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C96B /* GPTKInstaller.swift */; };
 		FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B801E98A17B24D94B7F3A120 /* GraphicsBackendResolver.swift */; };
@@ -306,6 +308,8 @@
 		CA2200000000000000000009 /* HardwareCapabilities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareCapabilities.swift; sourceTree = "<group>"; };
 		CA2200000000000000000011 /* ReportedGPUMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportedGPUMemory.swift; sourceTree = "<group>"; };
 		CA2200000000000000000013 /* ReportedGPUMemoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportedGPUMemoryTests.swift; sourceTree = "<group>"; };
+		CA2200000000000000000015 /* RuntimeRegistry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeRegistry.swift; sourceTree = "<group>"; };
+		CA2200000000000000000017 /* RuntimeIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeIsolationTests.swift; sourceTree = "<group>"; };
 		a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchProfileMergeTests.swift; sourceTree = "<group>"; };
 		d12844a5aba84e83b00c3038 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -703,6 +707,7 @@
 			children = (
 				CA2200000000000000000009 /* HardwareCapabilities.swift */,
 				CA2200000000000000000011 /* ReportedGPUMemory.swift */,
+				CA2200000000000000000015 /* RuntimeRegistry.swift */,
 				CA2200000000000000000001 /* RuntimeResolver.swift */,
 			);
 			path = Launch;
@@ -716,6 +721,7 @@
 				a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */,
 				4e80d464b7ab4fa4958233a0 /* RuntimeResolverTests.swift */,
 				CA2200000000000000000013 /* ReportedGPUMemoryTests.swift */,
+				CA2200000000000000000017 /* RuntimeIsolationTests.swift */,
 			);
 			path = KrakenTests;
 			sourceTree = "<group>";
@@ -909,6 +915,7 @@
 				FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */,
 				CA2200000000000000000010 /* HardwareCapabilities.swift in Sources */,
 				CA2200000000000000000012 /* ReportedGPUMemory.swift in Sources */,
+				CA2200000000000000000016 /* RuntimeRegistry.swift in Sources */,
 				CA2200000000000000000002 /* RuntimeResolver.swift in Sources */,
 				CA2200000000000000000004 /* PersistedValue.swift in Sources */,
 				6A2935592BFCFAFD0035CE4B /* ContainerCreationView.swift in Sources */,
@@ -1030,6 +1037,7 @@
 				34D0440D305B4ADC004C170D /* RuntimeResolverTests.swift in Sources */,
 				45B61F4CA7074EA589D621DE /* GraphicsBackendTests.swift in Sources */,
 				CA2200000000000000000014 /* ReportedGPUMemoryTests.swift in Sources */,
+				CA2200000000000000000018 /* RuntimeIsolationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

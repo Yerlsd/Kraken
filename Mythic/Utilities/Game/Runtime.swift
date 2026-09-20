@@ -10,11 +10,11 @@ import Foundation
 import SemanticVersion
 
 /// Stable identity for a game runtime supported by Kraken.
-enum RuntimeID: String, Codable, Equatable, Hashable, Sendable {
+enum RuntimeID: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
     /// The existing Mythic Engine 2 runtime.
     case mythicEngine = "mythic-engine"
 
-    /// Dedicated GPTK-compatible Wine runtime reusing Engine 2 Wine binaries.
+    /// Dedicated GPTK-compatible Wine runtime.
     case gptk = "gptk"
 
     /// The side-by-side Wine 11 runtime used by Engine 3.
@@ -78,69 +78,11 @@ extension Engine {
     static let runtimeDirectory = Bundle.appHome!.appending(path: "Runtimes")
 
     static func wineRuntime(for runtimeID: RuntimeID) -> WineRuntime {
-        switch runtimeID {
-        case .mythicEngine:
-            return .init(
-                id: .mythicEngine,
-                rootDirectory: directory,
-                wineBundleURL: nil,
-                wineExecutable: directory.appending(path: "wine/bin/wine64"),
-                wineserverExecutable: directory.appending(path: "wine/bin/wineserver")
-            )
-        case .gptk:
-            return .init(
-                id: .gptk,
-                rootDirectory: directory,
-                wineBundleURL: nil,
-                wineExecutable: directory.appending(path: "wine/bin/wine64"),
-                wineserverExecutable: directory.appending(path: "wine/bin/wineserver")
-            )
-        case .wine11:
-            let rootDirectory = runtimeDirectory.appending(path: "wine11")
-            let wineBundleURL = rootDirectory.appending(path: "Wine Stable.app")
-            let wineRoot = wineBundleURL.appending(path: "Contents/Resources/wine")
-            return .init(
-                id: .wine11,
-                rootDirectory: rootDirectory,
-                wineBundleURL: wineBundleURL,
-                wineExecutable: wineRoot.appending(path: "bin/wine"),
-                wineserverExecutable: wineRoot.appending(path: "bin/wineserver")
-            )
-        }
+        RuntimeRegistry.shared.resolveRuntime(for: runtimeID)
     }
 
     static func isRuntimeInstalled(_ runtimeID: RuntimeID) -> Bool {
-        let runtime = wineRuntime(for: runtimeID)
-        let fileManager = FileManager.default
-
-        guard fileManager.fileExists(atPath: runtime.wineExecutable.path),
-              fileManager.fileExists(atPath: runtime.wineserverExecutable.path)
-        else {
-            return false
-        }
-
-        switch runtimeID {
-        case .mythicEngine, .gptk:
-            return true
-
-        case .wine11:
-            guard let bundleURL = runtime.wineBundleURL else {
-                return false
-            }
-
-            let wineRoot =
-                bundleURL.appending(path: "Contents/Resources/wine")
-
-            let requiredPaths = [
-                wineRoot.appending(path: "bin/wineboot"),
-                wineRoot.appending(path: "lib/wine/x86_64-unix/ntdll.so"),
-                wineRoot.appending(path: "lib/wine/x86_64-windows/wined3d.dll")
-            ]
-
-            return requiredPaths.allSatisfy {
-                fileManager.fileExists(atPath: $0.path)
-            }
-        }
+        RuntimeRegistry.shared.isInstalled(runtimeID)
     }
 
     /// Install the first Engine 3 runtime without touching the existing Engine 2 installation.
