@@ -55,12 +55,99 @@ struct RuntimeDescriptor: Equatable, Hashable, Sendable, Identifiable {
     }
 }
 
+/// Verification result for a runtime installation.
+enum RuntimeVerificationStatus: Equatable, Hashable, Sendable {
+    case verified
+    case notInstalled
+    case missingComponents([String])
+    case architectureIncompatible(String)
+}
+
+struct RuntimeVerificationResult: Equatable, Hashable, Sendable {
+    let runtimeID: RuntimeID
+    let status: RuntimeVerificationStatus
+    let baseDirectory: URL
+    let missingPaths: [String]
+
+    var isReady: Bool {
+        status == .verified
+    }
+}
+
+/// Manifest defining the structure, version, and required components of a runtime package.
+struct RuntimeManifest: Equatable, Hashable, Sendable {
+    let id: RuntimeID
+    let family: RuntimeFamily
+    let technicalVersion: String
+    let requiredRelativePaths: [String]
+    let supportedGraphicsBackends: [GraphicsBackend]
+
+    init(
+        id: RuntimeID,
+        family: RuntimeFamily,
+        technicalVersion: String,
+        requiredRelativePaths: [String],
+        supportedGraphicsBackends: [GraphicsBackend]
+    ) {
+        self.id = id
+        self.family = family
+        self.technicalVersion = technicalVersion
+        self.requiredRelativePaths = requiredRelativePaths
+        self.supportedGraphicsBackends = supportedGraphicsBackends
+    }
+
+    /// Verification against a given base directory.
+    func verify(at baseDirectory: URL) -> RuntimeVerificationResult {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: baseDirectory.path) else {
+            return RuntimeVerificationResult(
+                runtimeID: id,
+                status: .notInstalled,
+                baseDirectory: baseDirectory,
+                missingPaths: [baseDirectory.path]
+            )
+        }
+
+        var missing: [String] = []
+        for relPath in requiredRelativePaths {
+            let fullPath = baseDirectory.appending(path: relPath).path
+            if !fm.fileExists(atPath: fullPath) {
+                missing.append(relPath)
+            }
+        }
+
+        if missing.isEmpty {
+            return RuntimeVerificationResult(
+                runtimeID: id,
+                status: .verified,
+                baseDirectory: baseDirectory,
+                missingPaths: []
+            )
+        } else {
+            return RuntimeVerificationResult(
+                runtimeID: id,
+                status: .missingComponents(missing),
+                baseDirectory: baseDirectory,
+                missingPaths: missing
+            )
+        }
+    }
+}
+
 /// Protocol implemented by providers responsible for resolving and probing concrete runtimes.
 protocol RuntimeProvider: Sendable {
     var id: RuntimeID { get }
     var descriptor: RuntimeDescriptor { get }
+    var manifest: RuntimeManifest { get }
     func isInstalled() -> Bool
+    func verify() -> RuntimeVerificationResult
     func resolveRuntime() -> WineRuntime
+}
+
+extension RuntimeProvider {
+    func verify() -> RuntimeVerificationResult {
+        manifest.verify(at: descriptor.baseDirectory)
+    }
 }
 
 // MARK: - Concrete Providers
@@ -82,6 +169,19 @@ struct MythicEngineRuntimeProvider: RuntimeProvider {
             technicalName: "Engine 2 · Legacy",
             capabilities: [.providesDXVK, .providesWineD3D],
             baseDirectory: rootDirectory
+        )
+    }
+
+    var manifest: RuntimeManifest {
+        .init(
+            id: .mythicEngine,
+            family: .mythicEngine,
+            technicalVersion: "7.7-mythic",
+            requiredRelativePaths: [
+                "wine/bin/wine64",
+                "wine/bin/wineserver"
+            ],
+            supportedGraphicsBackends: [.dxvk, .wined3d]
         )
     }
 
@@ -120,6 +220,22 @@ struct Wine11RuntimeProvider: RuntimeProvider {
             technicalName: "Engine 3 · Modern",
             capabilities: [.providesDXVK, .providesWineD3D, .providesD3DMetal, .providesDXMT, .requiresExplicitLoader],
             baseDirectory: rootDirectory
+        )
+    }
+
+    var manifest: RuntimeManifest {
+        .init(
+            id: .wine11,
+            family: .wine11,
+            technicalVersion: "11.0_1",
+            requiredRelativePaths: [
+                "Wine Stable.app/Contents/Resources/wine/bin/wine",
+                "Wine Stable.app/Contents/Resources/wine/bin/wineserver",
+                "Wine Stable.app/Contents/Resources/wine/bin/wineboot",
+                "Wine Stable.app/Contents/Resources/wine/lib/wine/x86_64-unix/ntdll.so",
+                "Wine Stable.app/Contents/Resources/wine/lib/wine/x86_64-windows/wined3d.dll"
+            ],
+            supportedGraphicsBackends: [.dxvk, .wined3d, .d3dmetal, .dxmt]
         )
     }
 
@@ -170,6 +286,19 @@ struct GPTKRuntimeProvider: RuntimeProvider {
             technicalName: "Game Porting Toolkit 4",
             capabilities: [.providesD3DMetal, .providesWineD3D],
             baseDirectory: rootDirectory
+        )
+    }
+
+    var manifest: RuntimeManifest {
+        .init(
+            id: .gptk,
+            family: .gptk,
+            technicalVersion: "4.0-beta2",
+            requiredRelativePaths: [
+                "wine/bin/wine64",
+                "wine/bin/wineserver"
+            ],
+            supportedGraphicsBackends: [.d3dmetal, .wined3d]
         )
     }
 
@@ -225,8 +354,27 @@ struct MockRuntimeProvider: RuntimeProvider {
         )
     }
 
+    var manifest: RuntimeManifest {
+        .init(
+            id: id,
+            family: descriptor.family,
+            technicalVersion: "mock-1.0",
+            requiredRelativePaths: [],
+            supportedGraphicsBackends: [.dxvk, .wined3d]
+        )
+    }
+
     func isInstalled() -> Bool {
         installed
+    }
+
+    func verify() -> RuntimeVerificationResult {
+        RuntimeVerificationResult(
+            runtimeID: id,
+            status: installed ? .verified : .notInstalled,
+            baseDirectory: descriptor.baseDirectory,
+            missingPaths: []
+        )
     }
 
     func resolveRuntime() -> WineRuntime {
@@ -260,6 +408,22 @@ struct RuntimeRegistry: Sendable {
 
     func descriptor(for id: RuntimeID) -> RuntimeDescriptor? {
         providers[id]?.descriptor
+    }
+
+    func manifest(for id: RuntimeID) -> RuntimeManifest? {
+        providers[id]?.manifest
+    }
+
+    func verify(for id: RuntimeID) -> RuntimeVerificationResult {
+        guard let provider = providers[id] else {
+            return RuntimeVerificationResult(
+                runtimeID: id,
+                status: .notInstalled,
+                baseDirectory: URL(fileURLWithPath: "/"),
+                missingPaths: ["unregistered provider"]
+            )
+        }
+        return provider.verify()
     }
 
     func resolveRuntime(for id: RuntimeID) -> WineRuntime {
