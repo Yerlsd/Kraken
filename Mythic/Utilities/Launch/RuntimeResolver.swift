@@ -46,6 +46,27 @@ enum RuntimeResolver {
         /// VRAM capacity (in MB) reported to Windows Direct3D games.
         let reportedGPUMemoryMB: Int
 
+        /// Immutable launch plan representing the complete launch decision.
+        let plan: LaunchPlan?
+
+        init(
+            runtime: WineRuntime,
+            container: ContainerReference,
+            environment: [String: String],
+            launchArguments: [String],
+            graphicsBackend: GraphicsBackend,
+            reportedGPUMemoryMB: Int,
+            plan: LaunchPlan? = nil
+        ) {
+            self.runtime = runtime
+            self.container = container
+            self.environment = environment
+            self.launchArguments = launchArguments
+            self.graphicsBackend = graphicsBackend
+            self.reportedGPUMemoryMB = reportedGPUMemoryMB
+            self.plan = plan
+        }
+
         var runtimeID: RuntimeID { runtime.id }
         var containerURL: URL { container.url }
     }
@@ -180,18 +201,147 @@ enum RuntimeResolver {
             )
         }
 
+        let env = environment(
+            forRuntime: selectedRuntimeID,
+            containerURL: reference.url,
+            settings: container.settings,
+            graphicsBackend: resolvedBackend
+        )
+
+        let runtime = Engine.wineRuntime(for: selectedRuntimeID)
+        let runtimeDescriptor = RuntimeRegistry.shared.descriptor(for: selectedRuntimeID)
+        let runtimeFamily = runtimeDescriptor?.family ?? .mythicEngine
+        let runtimeVersion = runtimeDescriptor?.technicalName ?? "Unknown"
+        let artifactManifest = GraphicsArtifactRegistry.shared.manifest(for: resolvedBackend, runtimeFamily: runtimeFamily)
+
+        let displayConfig = LaunchDisplayConfiguration(
+            retinaMode: container.settings.retinaMode,
+            scalingDPI: container.settings.scaling,
+            metalHUD: container.settings.metalHUD,
+            msync: container.settings.msync.numericalValue != 0,
+            avx2: container.settings.avx2.numericalValue != 0
+        )
+
+        let launchPlan = LaunchPlan(
+            gameId: "game",
+            gameTitle: "Game",
+            sourceProvider: .local,
+            executableURL: URL(fileURLWithPath: "/drive_c/game.exe"),
+            launchArguments: profile.launchArguments,
+            runtimeID: selectedRuntimeID,
+            runtimeFamily: runtimeFamily,
+            runtimeVersion: runtimeVersion,
+            wineExecutableURL: runtime.wineExecutable,
+            wineserverExecutableURL: runtime.wineserverExecutable,
+            containerURL: reference.url,
+            graphicsBackend: resolvedBackend,
+            graphicsArtifactManifest: artifactManifest,
+            reportedGPUMemoryMB: reportedMemoryMB,
+            environment: env,
+            displayConfiguration: displayConfig
+        )
+
         return .init(
-            runtime: Engine.wineRuntime(for: selectedRuntimeID),
+            runtime: runtime,
             container: reference,
-            environment: environment(
-                forRuntime: selectedRuntimeID,
-                containerURL: reference.url,
-                settings: container.settings,
-                graphicsBackend: resolvedBackend
-            ),
+            environment: env,
             launchArguments: profile.launchArguments,
             graphicsBackend: resolvedBackend,
-            reportedGPUMemoryMB: reportedMemoryMB
+            reportedGPUMemoryMB: reportedMemoryMB,
+            plan: launchPlan
+        )
+    }
+
+    /// Construct a complete, immutable LaunchPlan representing all concrete decisions for a launch attempt.
+    ///
+    /// This is the pure functional representation of a launch decision, independent of UI or storefront.
+    static func plan(
+        for profile: LaunchProfile,
+        gameId: String = "game",
+        gameTitle: String = "Game",
+        executableURL: URL = URL(fileURLWithPath: "/drive_c/game.exe"),
+        sourceProvider: LaunchSourceProvider = .local,
+        runtimeRegistry: RuntimeRegistry = .shared,
+        artifactRegistry: GraphicsArtifactRegistry = .shared
+    ) throws -> LaunchPlan {
+        let selectedRuntimeID = runtimeID(for: profile)
+
+        guard runtimeRegistry.isInstalled(selectedRuntimeID) else {
+            throw ResolutionError.runtimeNotInstalled(selectedRuntimeID)
+        }
+
+        guard let reference = profile.container else {
+            throw ResolutionError.noContainerAssigned(selectedRuntimeID)
+        }
+
+        guard Wine.containerExists(at: reference.url) else {
+            throw ResolutionError.containerMissing(reference.url)
+        }
+
+        let container: Wine.Container
+        do {
+            container = try Wine.getContainerObject(at: reference.url)
+        } catch {
+            throw ResolutionError.containerUnreadable(reference.url)
+        }
+
+        guard container.runtimeID == selectedRuntimeID else {
+            throw ResolutionError.containerRuntimeMismatch(
+                selected: selectedRuntimeID,
+                containerRuntime: container.runtimeID,
+                containerURL: reference.url
+            )
+        }
+
+        // Resolve graphics backend
+        let resolvedBackend = try GraphicsBackendResolver.resolve(
+            profile: profile,
+            runtimeID: selectedRuntimeID
+        )
+
+        // Resolve reported GPU memory
+        let reportedMemoryMB = ReportedGPUMemoryResolver.shared.resolveMegabytes(
+            for: profile.reportedGPUMemoryPolicy
+        )
+
+        let runtimeDescriptor = runtimeRegistry.descriptor(for: selectedRuntimeID)
+        let runtimeFamily = runtimeDescriptor?.family ?? .mythicEngine
+        let runtimeVersion = runtimeDescriptor?.technicalName ?? "Unknown"
+        let runtime = runtimeRegistry.resolveRuntime(for: selectedRuntimeID)
+        let artifactManifest = artifactRegistry.manifest(for: resolvedBackend, runtimeFamily: runtimeFamily)
+
+        let env = environment(
+            forRuntime: selectedRuntimeID,
+            containerURL: reference.url,
+            settings: container.settings,
+            graphicsBackend: resolvedBackend
+        )
+
+        let displayConfig = LaunchDisplayConfiguration(
+            retinaMode: container.settings.retinaMode,
+            scalingDPI: container.settings.scaling,
+            metalHUD: container.settings.metalHUD,
+            msync: container.settings.msync.numericalValue != 0,
+            avx2: container.settings.avx2.numericalValue != 0
+        )
+
+        return LaunchPlan(
+            gameId: gameId,
+            gameTitle: gameTitle,
+            sourceProvider: sourceProvider,
+            executableURL: executableURL,
+            launchArguments: profile.launchArguments,
+            runtimeID: selectedRuntimeID,
+            runtimeFamily: runtimeFamily,
+            runtimeVersion: runtimeVersion,
+            wineExecutableURL: runtime.wineExecutable,
+            wineserverExecutableURL: runtime.wineserverExecutable,
+            containerURL: reference.url,
+            graphicsBackend: resolvedBackend,
+            graphicsArtifactManifest: artifactManifest,
+            reportedGPUMemoryMB: reportedMemoryMB,
+            environment: env,
+            displayConfiguration: displayConfig
         )
     }
 

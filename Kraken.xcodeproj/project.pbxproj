@@ -150,6 +150,8 @@
 		CA2200000000000000000018 /* RuntimeIsolationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000017 /* RuntimeIsolationTests.swift */; };
 		CA2200000000000000000020 /* GraphicsArtifact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000019 /* GraphicsArtifact.swift */; };
 		CA2200000000000000000022 /* GraphicsArtifactTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000021 /* GraphicsArtifactTests.swift */; };
+		CA2200000000000000000024 /* LaunchPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000023 /* LaunchPlan.swift */; };
+		CA2200000000000000000026 /* LaunchPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000025 /* LaunchPlanTests.swift */; };
 		DF33D5E97B6044AD8C6F582C /* GraphicsBackendDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C958 /* GraphicsBackendDetector.swift */; };
 		DF33D5E97B6044AD8C6F583A /* GPTKInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C96B /* GPTKInstaller.swift */; };
 		FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B801E98A17B24D94B7F3A120 /* GraphicsBackendResolver.swift */; };
@@ -314,6 +316,8 @@
 		CA2200000000000000000017 /* RuntimeIsolationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimeIsolationTests.swift; sourceTree = "<group>"; };
 		CA2200000000000000000019 /* GraphicsArtifact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphicsArtifact.swift; sourceTree = "<group>"; };
 		CA2200000000000000000021 /* GraphicsArtifactTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GraphicsArtifactTests.swift; sourceTree = "<group>"; };
+		CA2200000000000000000023 /* LaunchPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchPlan.swift; sourceTree = "<group>"; };
+		CA2200000000000000000025 /* LaunchPlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchPlanTests.swift; sourceTree = "<group>"; };
 		a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchProfileMergeTests.swift; sourceTree = "<group>"; };
 		d12844a5aba84e83b00c3038 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -709,6 +713,7 @@
 		CA1100000000000000000003 /* Launch */ = {
 			isa = PBXGroup;
 			children = (
+				CA2200000000000000000023 /* LaunchPlan.swift */,
 				CA2200000000000000000019 /* GraphicsArtifact.swift */,
 				CA2200000000000000000009 /* HardwareCapabilities.swift */,
 				CA2200000000000000000011 /* ReportedGPUMemory.swift */,
@@ -723,6 +728,7 @@
 			children = (
 				45B61F4CA7074EA589D621DD /* GraphicsBackendTests.swift */,
 				CA2200000000000000000021 /* GraphicsArtifactTests.swift */,
+				CA2200000000000000000025 /* LaunchPlanTests.swift */,
 				d12844a5aba84e83b00c3038 /* PersistenceTests.swift */,
 				a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */,
 				4e80d464b7ab4fa4958233a0 /* RuntimeResolverTests.swift */,
@@ -919,6 +925,7 @@
 				DF33D5E97B6044AD8C6F582C /* GraphicsBackendDetector.swift in Sources */,
 				DF33D5E97B6044AD8C6F583A /* GPTKInstaller.swift in Sources */,
 				FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */,
+				CA2200000000000000000024 /* LaunchPlan.swift in Sources */,
 				CA2200000000000000000020 /* GraphicsArtifact.swift in Sources */,
 				CA2200000000000000000010 /* HardwareCapabilities.swift in Sources */,
 				CA2200000000000000000012 /* ReportedGPUMemory.swift in Sources */,
@@ -1046,6 +1053,7 @@
 				CA2200000000000000000014 /* ReportedGPUMemoryTests.swift in Sources */,
 				CA2200000000000000000018 /* RuntimeIsolationTests.swift in Sources */,
 				CA2200000000000000000022 /* GraphicsArtifactTests.swift in Sources */,
+				CA2200000000000000000026 /* LaunchPlanTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
