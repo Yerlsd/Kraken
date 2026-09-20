@@ -544,6 +544,8 @@ final class Legendary {
 
             var resolvedTarget: RuntimeResolver.ResolvedLaunchTarget?
 
+            var launchSession: LaunchSession?
+
             // uses legendary's native launch process
             switch platform {
             case .macOS:
@@ -554,10 +556,25 @@ final class Legendary {
                  invokes wine itself, so it needs the resolved loader passed
                  through `--wine` in addition to the resolved environment.
                  */
+                let plan = try RuntimeResolver.plan(
+                    for: launchProfile,
+                    gameId: gameID,
+                    gameTitle: game.title,
+                    executableURL: URL(fileURLWithPath: "/games/\(gameID)"),
+                    sourceProvider: .epic
+                )
+                let session = LaunchSession(plan: plan)
+                session.transitionToResolving()
+                session.transitionToProvisioning()
+                launchSession = session
+
                 let target = try RuntimeResolver.resolve(profile: launchProfile)
                 resolvedTarget = target
                 environment = target.environment
                 arguments += ["--wine", target.runtime.wineExecutable.path]
+
+                session.transitionToStartingRuntime()
+                session.transitionToStartingProcess()
             }
 
             arguments.append(contentsOf: launchProfile.launchArguments.map({ "'\($0)'" }))
@@ -572,6 +589,10 @@ final class Legendary {
             
             try await withTaskCancellationHandler {
                 try process.run()
+                if let session = launchSession {
+                    session.recordProcessCreated(pid: process.processIdentifier, processName: "legendary")
+                    ProcessMonitor.shared.register(session: session)
+                }
 
                 if let backend = resolvedTarget?.graphicsBackend {
                     await MainActor.run {
@@ -580,11 +601,21 @@ final class Legendary {
                 }
                 
                 try handleCLIErrorOutput(fromStandardErrorPipe: processStandardErrorPipe)
+
+                if let session = launchSession {
+                    session.recordTermination(exitCode: process.terminationStatus)
+                    ProcessMonitor.shared.unregister(sessionId: session.id)
+                }
             } onCancel: {
                 // FIXME: legendary will spawn wine completely detached from the cli itself
                 // FIXME: because of this, terminating the process used to launch it will NOT
                 // FIXME: terminate the wine subprocess.. this is a KNOWN ISSUE
+                launchSession?.transitionToTerminating()
                 process.terminate()
+                if let session = launchSession {
+                    session.recordTermination(exitCode: 15, reason: .userCancelled)
+                    ProcessMonitor.shared.unregister(sessionId: session.id)
+                }
             }
         }
 

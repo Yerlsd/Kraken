@@ -229,4 +229,48 @@ final class LaunchSessionTests: XCTestCase {
         // LaunchSession is purely in-memory and does not touch UserDefaults keys or persistent game data
         XCTAssertNotNil(session.terminationInfo)
     }
+
+    func testLocalGamePipelineSessionFlow() {
+        let plan = makeSamplePlan()
+        let session = LaunchSession(plan: plan)
+
+        session.transitionToResolving()
+        session.transitionToProvisioning()
+        session.transitionToStartingRuntime()
+        session.transitionToStartingProcess()
+        session.recordProcessCreated(pid: 54321, processName: "wine64")
+
+        XCTAssertTrue(session.state.isRunning)
+        XCTAssertEqual(session.processIdentity?.processName, "wine64")
+
+        session.recordTermination(exitCode: 0, reason: .normalExit)
+        XCTAssertTrue(session.state.isTerminal)
+        XCTAssertEqual(session.terminationInfo?.exitCode, 0)
+    }
+
+    func testEpicProviderPipelineSessionFlow() {
+        let plan = makeSamplePlan()
+        let session = LaunchSession(plan: plan)
+
+        session.transitionToResolving()
+        session.transitionToProvisioning()
+        session.transitionToStartingRuntime()
+        session.transitionToStartingProcess()
+        session.recordProcessCreated(pid: 12121, processName: "legendary")
+
+        XCTAssertTrue(session.state.isRunning)
+        XCTAssertEqual(session.processIdentity?.processName, "legendary")
+
+        session.recordTermination(exitCode: 0, reason: .normalExit)
+        XCTAssertTrue(session.state.isTerminal)
+        XCTAssertEqual(session.terminationInfo?.exitCode, 0)
+    }
+
+    func testNoDuplicatedRuntimeResolutionInPipeline() {
+        let plan = makeSamplePlan()
+        XCTAssertEqual(plan.runtimeID, .wine11)
+        XCTAssertEqual(plan.runtimeFamily, .wine11)
+        XCTAssertEqual(plan.graphicsBackend, .dxvk)
+        XCTAssertEqual(plan.reportedGPUMemoryMB, 8192)
+    }
 }

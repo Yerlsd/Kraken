@@ -111,6 +111,17 @@ class LocalGameManager {
 
             case .windows:
                 // Single runtime authority, shared with the Epic launch path.
+                let plan = try RuntimeResolver.plan(
+                    for: launchProfile,
+                    gameId: game.id,
+                    gameTitle: game.title,
+                    executableURL: location,
+                    sourceProvider: .local
+                )
+                let session = LaunchSession(plan: plan)
+                session.transitionToResolving()
+                session.transitionToProvisioning()
+
                 let target = try RuntimeResolver.resolve(profile: launchProfile)
 
                 if UserDefaults.standard.bool(forKey: "minimiseOnGameLaunch") {
@@ -118,6 +129,9 @@ class LocalGameManager {
                         NSApp.windows.first?.miniaturize(nil)
                     }
                 }
+
+                session.transitionToStartingRuntime()
+                session.transitionToStartingProcess()
 
                 let process = Process()
                 process.currentDirectoryURL = location.deletingLastPathComponent()
@@ -162,6 +176,8 @@ class LocalGameManager {
                 let processBox = ProcessBox(process)
 
                 try process.run()
+                session.recordProcessCreated(pid: process.processIdentifier)
+                ProcessMonitor.shared.register(session: session)
 
                 await MainActor.run {
                     game.launchProfile.recordSuccessfulLaunch(backend: target.graphicsBackend)
@@ -184,7 +200,12 @@ class LocalGameManager {
 
                         let state = ContinuationState()
 
-                        processBox.value.terminationHandler = { _ in
+                        processBox.value.terminationHandler = { terminatedProcess in
+                            let exitCode = terminatedProcess.terminationStatus
+                            let reason: ProcessTerminationReason = (terminatedProcess.terminationReason == .exit) ? .normalExit : .uncaughtSignal
+                            session.recordTermination(exitCode: exitCode, reason: reason)
+                            ProcessMonitor.shared.unregister(sessionId: session.id)
+
                             outputPipe.fileHandleForReading.readabilityHandler = nil
                             errorPipe.fileHandleForReading.readabilityHandler = nil
                             state.resumeOnce(continuation)
@@ -200,6 +221,7 @@ class LocalGameManager {
                     try Task.checkCancellation()
                 } onCancel: {
                     if processBox.value.isRunning {
+                        session.transitionToTerminating()
                         processBox.value.terminate()
                     }
                 }
