@@ -542,6 +542,8 @@ final class Legendary {
 
             guard !isVerificationRequired else { throw EpicGamesGame.VerificationRequiredError() }
 
+            var resolvedTarget: RuntimeResolver.ResolvedLaunchTarget?
+
             // uses legendary's native launch process
             switch platform {
             case .macOS:
@@ -553,6 +555,7 @@ final class Legendary {
                  through `--wine` in addition to the resolved environment.
                  */
                 let target = try RuntimeResolver.resolve(profile: launchProfile)
+                resolvedTarget = target
                 environment = target.environment
                 arguments += ["--wine", target.runtime.wineExecutable.path]
             }
@@ -569,6 +572,12 @@ final class Legendary {
             
             try await withTaskCancellationHandler {
                 try process.run()
+
+                if let backend = resolvedTarget?.graphicsBackend {
+                    await MainActor.run {
+                        game.launchProfile.recordSuccessfulLaunch(backend: backend)
+                    }
+                }
                 
                 try handleCLIErrorOutput(fromStandardErrorPipe: processStandardErrorPipe)
             } onCancel: {

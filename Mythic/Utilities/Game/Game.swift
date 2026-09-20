@@ -46,6 +46,9 @@ struct LaunchProfile: Codable, Equatable, Sendable {
     /// Used by automatic selection to prefer previously working backends.
     private(set) var lastSuccessfulBackend: GraphicsBackend?
 
+    /// User-configurable policy for reported GPU memory (VRAM).
+    var reportedGPUMemoryPolicy: ReportedGPUMemoryPolicy
+
     /// The runtime that will actually be used to launch this game.
     ///
     /// Read-only: a manual override takes precedence, otherwise the stored
@@ -76,7 +79,8 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         runtimeOverride: RuntimeID? = nil,
         launchArguments: [String] = [],
         graphicsBackend: GraphicsBackend = .automatic,
-        lastSuccessfulBackend: GraphicsBackend? = nil
+        lastSuccessfulBackend: GraphicsBackend? = nil,
+        reportedGPUMemoryPolicy: ReportedGPUMemoryPolicy = .automatic
     ) {
         self.container = container
         self.defaultRuntimeID = defaultRuntimeID
@@ -84,6 +88,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         self.launchArguments = launchArguments
         self.graphicsBackend = graphicsBackend
         self.lastSuccessfulBackend = lastSuccessfulBackend
+        self.reportedGPUMemoryPolicy = reportedGPUMemoryPolicy
     }
 
     /// Select a specific graphics backend for this game.
@@ -94,6 +99,11 @@ struct LaunchProfile: Codable, Equatable, Sendable {
     /// Record that a backend successfully launched this game.
     mutating func recordSuccessfulLaunch(backend: GraphicsBackend) {
         lastSuccessfulBackend = backend
+    }
+
+    /// Select a specific reported GPU memory policy for this game.
+    mutating func selectReportedGPUMemoryPolicy(_ policy: ReportedGPUMemoryPolicy) {
+        reportedGPUMemoryPolicy = policy
     }
 
     /// Merge two argument lists preserving first-occurrence order.
@@ -122,6 +132,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         case launchArguments
         case graphicsBackend
         case lastSuccessfulBackend
+        case reportedGPUMemoryPolicy
     }
 
     init(from decoder: Decoder) throws {
@@ -135,6 +146,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         self.launchArguments = try container.decodeIfPresent([String].self, forKey: .launchArguments) ?? []
         self.graphicsBackend = try container.decodeIfPresent(GraphicsBackend.self, forKey: .graphicsBackend) ?? .automatic
         self.lastSuccessfulBackend = try container.decodeIfPresent(GraphicsBackend.self, forKey: .lastSuccessfulBackend)
+        self.reportedGPUMemoryPolicy = try container.decodeIfPresent(ReportedGPUMemoryPolicy.self, forKey: .reportedGPUMemoryPolicy) ?? .automatic
     }
 
     func encode(to encoder: Encoder) throws {
@@ -145,6 +157,7 @@ struct LaunchProfile: Codable, Equatable, Sendable {
         try container.encode(launchArguments, forKey: .launchArguments)
         try container.encode(graphicsBackend, forKey: .graphicsBackend)
         try container.encodeIfPresent(lastSuccessfulBackend, forKey: .lastSuccessfulBackend)
+        try container.encode(reportedGPUMemoryPolicy, forKey: .reportedGPUMemoryPolicy)
     }
 }
 

@@ -136,8 +136,10 @@ struct HomeView: View {
                         )
                         .foregroundStyle(.white)
 
-                        GameCard.ButtonsView(game: .constant(recentGame), withLabel: true)
-                            .clipShape(.capsule)
+                        if let recentBinding = gameDataStore.binding(for: recentGame.id) {
+                            GameCard.ButtonsView(game: recentBinding, withLabel: true)
+                                .clipShape(.capsule)
+                        }
                     }
                 }
                 .padding(20)

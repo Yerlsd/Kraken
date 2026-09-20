@@ -14,6 +14,9 @@ enum RuntimeID: String, Codable, Equatable, Hashable, Sendable {
     /// The existing Mythic Engine 2 runtime.
     case mythicEngine = "mythic-engine"
 
+    /// Dedicated GPTK-compatible Wine runtime reusing Engine 2 Wine binaries.
+    case gptk = "gptk"
+
     /// The side-by-side Wine 11 runtime used by Engine 3.
     case wine11 = "wine-11"
 }
@@ -24,6 +27,7 @@ struct Runtime: Codable, Equatable, Hashable, Sendable, Identifiable {
     let name: String
 
     static let mythicEngine = Runtime(id: .mythicEngine, name: "Mythic Engine")
+    static let gptk = Runtime(id: .gptk, name: "GPTK 4")
     static let wine11 = Runtime(id: .wine11, name: "Wine 11")
 
     /// Existing behaviour remains the default until Engine 3 is installed and validated.
@@ -37,6 +41,33 @@ struct WineRuntime: Equatable, Sendable {
     let wineBundleURL: URL?
     let wineExecutable: URL
     let wineserverExecutable: URL
+
+    /// Directory containing external frameworks and libraries (e.g. D3DMetal.framework).
+    var externalLibrariesURL: URL {
+        if let wineBundleURL {
+            return wineBundleURL.appending(path: "Contents/Resources/wine/lib/external")
+        } else {
+            return rootDirectory.appending(path: "wine/lib/external")
+        }
+    }
+
+    /// Directory containing Windows PE DLLs (e.g. companion d3d11.dll).
+    var windowsLibrariesURL: URL {
+        if let wineBundleURL {
+            return wineBundleURL.appending(path: "Contents/Resources/wine/lib/wine/x86_64-windows")
+        } else {
+            return rootDirectory.appending(path: "wine/lib/wine/x86_64-windows")
+        }
+    }
+
+    /// Directory containing Unix shared libraries (e.g. bridge d3d11.so).
+    var unixLibrariesURL: URL {
+        if let wineBundleURL {
+            return wineBundleURL.appending(path: "Contents/Resources/wine/lib/wine/x86_64-unix")
+        } else {
+            return rootDirectory.appending(path: "wine/lib/wine/x86_64-unix")
+        }
+    }
 }
 
 extension Engine {
@@ -51,6 +82,14 @@ extension Engine {
         case .mythicEngine:
             return .init(
                 id: .mythicEngine,
+                rootDirectory: directory,
+                wineBundleURL: nil,
+                wineExecutable: directory.appending(path: "wine/bin/wine64"),
+                wineserverExecutable: directory.appending(path: "wine/bin/wineserver")
+            )
+        case .gptk:
+            return .init(
+                id: .gptk,
                 rootDirectory: directory,
                 wineBundleURL: nil,
                 wineExecutable: directory.appending(path: "wine/bin/wine64"),
@@ -81,7 +120,7 @@ extension Engine {
         }
 
         switch runtimeID {
-        case .mythicEngine:
+        case .mythicEngine, .gptk:
             return true
 
         case .wine11:
@@ -94,8 +133,8 @@ extension Engine {
 
             let requiredPaths = [
                 wineRoot.appending(path: "bin/wineboot"),
-                wineRoot.appending(path: "lib/x86_64-unix/ntdll.so"),
-                wineRoot.appending(path: "lib/x86_64-windows/wined3d.dll")
+                wineRoot.appending(path: "lib/wine/x86_64-unix/ntdll.so"),
+                wineRoot.appending(path: "lib/wine/x86_64-windows/wined3d.dll")
             ]
 
             return requiredPaths.allSatisfy {
@@ -116,6 +155,8 @@ extension Engine {
             switch runtimeID {
             case .mythicEngine:
                 return String(localized: "Mythic Engine is not installed.")
+            case .gptk:
+                return String(localized: "GPTK 4 is not installed.")
             case .wine11:
                 return String(localized: "Wine 11 runtime is not installed.")
             }
@@ -469,7 +510,7 @@ extension Wine {
 
         let bundledWinetricksURL: URL?
 
-        if runtimeID == .mythicEngine {
+        if runtimeID == .mythicEngine || runtimeID == .gptk {
             bundledWinetricksURL =
                 Engine.directory.appending(path: "winetricks")
         } else {

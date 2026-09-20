@@ -170,9 +170,11 @@ final class GraphicsBackendTests: XCTestCase {
     func testWineD3DAlwaysAvailable() {
         let engine2 = GraphicsBackendDetector.availableBackends(for: .mythicEngine)
         let wine11 = GraphicsBackendDetector.availableBackends(for: .wine11)
+        let gptk = GraphicsBackendDetector.availableBackends(for: .gptk)
 
         XCTAssertTrue(engine2.contains(.wined3d), "WineD3D should always be available for Engine 2")
         XCTAssertTrue(wine11.contains(.wined3d), "WineD3D should always be available for Wine 11")
+        XCTAssertTrue(gptk.contains(.wined3d), "WineD3D should always be available for GPTK")
     }
 
     func testEngine2ProvidesDXVK() {
@@ -182,11 +184,38 @@ final class GraphicsBackendTests: XCTestCase {
         XCTAssertTrue(available.contains(.dxvk), "Engine 2 should provide DXVK")
     }
 
+    func testWine11ProvidesDXVK() {
+        let available = GraphicsBackendDetector.availableBackends(for: .wine11)
+        XCTAssertTrue(available.contains(.dxvk), "Wine 11 should provide DXVK")
+    }
+
     func testD3DMetalNotAvailableForEngine2() {
         let available = GraphicsBackendDetector.availableBackends(for: .mythicEngine)
 
-        // D3DMetal is Wine 11 only
+        // D3DMetal is not enabled on Engine 2 default
         XCTAssertFalse(available.contains(.d3dmetal), "D3DMetal should not be available for Engine 2")
+    }
+
+    func testD3DMetalNotAvailableForWine11() {
+        let available = GraphicsBackendDetector.availableBackends(for: .wine11)
+        XCTAssertFalse(available.contains(.d3dmetal), "Stock Wine 11 should not provide D3DMetal")
+
+        var profile = LaunchProfile()
+        profile.selectGraphicsBackend(.d3dmetal)
+        XCTAssertThrowsError(try GraphicsBackendResolver.resolve(profile: profile, runtimeID: .wine11)) { error in
+            XCTAssertTrue(error is GraphicsBackendResolver.BackendUnavailableError)
+        }
+    }
+
+    func testGPTKProvidesD3DMetalWhenInstalled() {
+        if GPTKInstaller.isInstalled(for: .gptk) {
+            let available = GraphicsBackendDetector.availableBackends(for: .gptk)
+            XCTAssertTrue(available.contains(.d3dmetal), "GPTK runtime should provide D3DMetal when installed")
+
+            let profile = LaunchProfile(graphicsBackend: .automatic)
+            let resolved = try? GraphicsBackendResolver.resolve(profile: profile, runtimeID: .gptk)
+            XCTAssertEqual(resolved, .d3dmetal, "Automatic backend selection should prefer D3DMetal for GPTK runtime")
+        }
     }
 
     // MARK: - Per-Game Isolation Tests

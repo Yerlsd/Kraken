@@ -35,10 +35,10 @@ struct ContainerCreationView: View {
                 TextField("Choose a name for your container:", text: $containerName)
 
                 Picker("Runtime", selection: $runtimeID) {
-                    ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
+                    ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
                         HStack(spacing: 6) {
                             Text(runtime.name)
-                            Text(runtime.id == .wine11 ? "Engine 3 · NEW" : "Engine 2 · Legacy")
+                            Text(runtime.id == .wine11 ? "Engine 3 · NEW" : (runtime.id == .gptk ? "GPTK 4" : "Engine 2 · Legacy"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }

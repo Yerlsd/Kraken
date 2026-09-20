@@ -249,6 +249,42 @@ final class RuntimeResolverTests: XCTestCase {
         XCTAssertNotNil(env["WINE64"], "Wine 11 should set WINE64")
     }
 
+    func testD3DMetalEnvironmentIncludesFrameworkAndDXR() {
+        let containerURL = URL(fileURLWithPath: "/tmp/testprefix")
+        let settings = Wine.Container.Settings()
+
+        let env = RuntimeResolver.environment(
+            forRuntime: .gptk,
+            containerURL: containerURL,
+            settings: settings,
+            graphicsBackend: .d3dmetal
+        )
+
+        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10,d3d11,d3d12,dxgi=n,b")
+        XCTAssertEqual(env["D3DM_SUPPORT_DXR"], "1")
+        XCTAssertNil(env["D3DM_WINE_UNIX_CALL"], "D3DM_WINE_UNIX_CALL should not be set")
+        let expectedFrameworkPath = Engine.wineRuntime(for: .gptk).externalLibrariesURL.appending(path: "D3DMetal.framework/D3DMetal").path
+        XCTAssertEqual(env["D3DMETAL_FRAMEWORK_PATH"], expectedFrameworkPath)
+        XCTAssertEqual(env["DYLD_FRAMEWORK_PATH"], Engine.wineRuntime(for: .gptk).externalLibrariesURL.path)
+    }
+
+    func testGPTKDoesNotSetExplicitLoader() {
+        let containerURL = URL(fileURLWithPath: "/tmp/testprefix")
+        let settings = Wine.Container.Settings()
+
+        let env = RuntimeResolver.environment(
+            forRuntime: .gptk,
+            containerURL: containerURL,
+            settings: settings,
+            graphicsBackend: .wined3d
+        )
+
+        XCTAssertNil(env["WINESERVER"])
+        XCTAssertNil(env["WINELOADER"])
+        XCTAssertNil(env["WINE"])
+        XCTAssertNil(env["WINE64"])
+    }
+
     func testMythicEngineDoesNotSetExplicitLoader() {
         let containerURL = URL(fileURLWithPath: "/tmp/testprefix")
         let settings = Wine.Container.Settings()
@@ -279,7 +315,7 @@ final class RuntimeResolverTests: XCTestCase {
         )
 
         // Engine 2 with DXVK backend
-        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core,d3d11=n,b")
+        XCTAssertEqual(env["WINEDLLOVERRIDES"], "d3d10core,d3d11,dxgi=n,b")
         XCTAssertEqual(env["DXVK_ASYNC"], "1")
     }
 

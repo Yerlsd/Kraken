@@ -43,6 +43,9 @@ enum RuntimeResolver {
         /// Graphics backend resolved for this launch.
         let graphicsBackend: GraphicsBackend
 
+        /// VRAM capacity (in MB) reported to Windows Direct3D games.
+        let reportedGPUMemoryMB: Int
+
         var runtimeID: RuntimeID { runtime.id }
         var containerURL: URL { container.url }
     }
@@ -110,7 +113,7 @@ enum RuntimeResolver {
     }
 
     /// Runtimes Kraken knows about, in display order.
-    static let allRuntimeIDs: [RuntimeID] = [.mythicEngine, .wine11]
+    static let allRuntimeIDs: [RuntimeID] = [.mythicEngine, .gptk, .wine11]
 
     /// Runtimes actually installed and usable right now.
     static func installedRuntimeIDs() -> [RuntimeID] {
@@ -159,6 +162,24 @@ enum RuntimeResolver {
             runtimeID: selectedRuntimeID
         )
 
+        // Resolve reported GPU memory
+        let reportedMemoryMB = ReportedGPUMemoryResolver.shared.resolveMegabytes(
+            for: profile.reportedGPUMemoryPolicy
+        )
+
+        // When D3DMetal is selected, ensure the container's system32 has matching companion DLLs
+        if resolvedBackend == .d3dmetal {
+            try? GPTKInstaller.syncContainerDLLs(containerURL: reference.url, for: selectedRuntimeID)
+        }
+
+        // When DXVK is selected, provision container dxvk.conf with the resolved memory reporting
+        if resolvedBackend == .dxvk {
+            try? DXVKConfigurationManager.writeConfiguration(
+                toContainerAtURL: reference.url,
+                memoryMB: reportedMemoryMB
+            )
+        }
+
         return .init(
             runtime: Engine.wineRuntime(for: selectedRuntimeID),
             container: reference,
@@ -169,7 +190,8 @@ enum RuntimeResolver {
                 graphicsBackend: resolvedBackend
             ),
             launchArguments: profile.launchArguments,
-            graphicsBackend: resolvedBackend
+            graphicsBackend: resolvedBackend,
+            reportedGPUMemoryMB: reportedMemoryMB
         )
     }
 
@@ -241,21 +263,23 @@ enum RuntimeResolver {
 
         case .d3dmetal:
             environment["WINEDLLOVERRIDES"] = "d3d10,d3d11,d3d12,dxgi=n,b"
-            // D3DMetal.framework location (if not in standard path)
-            if let bundleURL = Engine.wineRuntime(for: runtimeID).wineBundleURL {
-                let frameworkPath = bundleURL.appending(
-                    path: "Contents/Resources/wine/lib/external"
-                )
-                environment["DYLD_FRAMEWORK_PATH"] = frameworkPath.path
-                environment["DYLD_FALLBACK_LIBRARY_PATH"] = frameworkPath.path
-            }
+            let runtime = Engine.wineRuntime(for: runtimeID)
+            let externalPath = runtime.externalLibrariesURL
+            let frameworkBinary = externalPath.appending(
+                path: "D3DMetal.framework/D3DMetal"
+            )
+            environment["DYLD_FRAMEWORK_PATH"] = externalPath.path
+            environment["DYLD_FALLBACK_LIBRARY_PATH"] = externalPath.path
+            environment["D3DMETAL_FRAMEWORK_PATH"] = frameworkBinary.path
+            environment["D3DM_SUPPORT_DXR"] = "1"
 
         case .dxmt:
             environment["WINEDLLOVERRIDES"] = "d3d10,d3d11,dxgi=n"
 
         case .dxvk:
-            environment["WINEDLLOVERRIDES"] = "d3d10core,d3d11=n,b"
+            environment["WINEDLLOVERRIDES"] = "d3d10core,d3d11,dxgi=n,b"
             environment["DXVK_ASYNC"] = settings.dxvkAsync.numericalValue.description
+            environment["DXVK_CONFIG_FILE"] = "C:\\windows\\dxvk.conf"
 
         case .wined3d:
             // No overrides - use Wine's built-in D3D implementation
@@ -278,7 +302,8 @@ enum RuntimeResolver {
         process.executableURL = target.runtime.wineExecutable
         // Caller-supplied variables lose to resolved ones: the resolved runtime
         // environment must not be silently overridden by stale values.
-        process.environment = (process.environment ?? [:])
+        let baseEnvironment = process.environment ?? ProcessInfo.processInfo.environment
+        process.environment = baseEnvironment
             .merging(target.environment, uniquingKeysWith: { _, resolved in resolved })
     }
 }
@@ -292,8 +317,8 @@ extension RuntimeID {
     /// loader; the Wine 11 runtime ships as a relocatable `.app` bundle and does not.
     var requiresExplicitLoaderEnvironment: Bool {
         switch self {
-        case .mythicEngine: return false
-        case .wine11:       return true
+        case .mythicEngine, .gptk: return false
+        case .wine11:              return true
         }
     }
 
@@ -310,8 +335,8 @@ extension RuntimeID {
     ///   rather than a hardcoded answer.
     var providesDXVK: Bool {
         switch self {
-        case .mythicEngine: return true
-        case .wine11:       return false
+        case .mythicEngine, .wine11: return true
+        case .gptk: return false
         }
     }
 }
@@ -321,6 +346,7 @@ extension Runtime {
     static func displayName(for runtimeID: RuntimeID) -> String {
         switch runtimeID {
         case .mythicEngine: return Runtime.mythicEngine.name
+        case .gptk:         return Runtime.gptk.name
         case .wine11:       return Runtime.wine11.name
         }
     }

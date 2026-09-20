@@ -56,24 +56,22 @@ struct GraphicsBackendResolver {
     ) -> [GraphicsBackend] {
         var ranked: [GraphicsBackend] = []
 
-        // Prefer D3DMetal for D3D11/D3D12
-        if available.contains(.d3dmetal) {
-            ranked.append(.d3dmetal)
-        }
+        switch runtimeID {
+        case .gptk:
+            // GPTK runtime prefers D3DMetal with WineD3D fallback
+            if available.contains(.d3dmetal) { ranked.append(.d3dmetal) }
+            if available.contains(.wined3d) { ranked.append(.wined3d) }
 
-        // DXMT for D3D10/D3D11
-        if available.contains(.dxmt) {
-            ranked.append(.dxmt)
-        }
+        case .mythicEngine:
+            // Engine 2 prefers DXVK with WineD3D fallback
+            if available.contains(.dxvk) { ranked.append(.dxvk) }
+            if available.contains(.wined3d) { ranked.append(.wined3d) }
 
-        // DXVK for D3D9/D3D10/D3D11
-        if available.contains(.dxvk) {
-            ranked.append(.dxvk)
-        }
-
-        // WineD3D always available as fallback
-        if available.contains(.wined3d) {
-            ranked.append(.wined3d)
+        case .wine11:
+            // Wine 11 prefers DXMT -> DXVK -> WineD3D
+            if available.contains(.dxmt) { ranked.append(.dxmt) }
+            if available.contains(.dxvk) { ranked.append(.dxvk) }
+            if available.contains(.wined3d) { ranked.append(.wined3d) }
         }
 
         return ranked

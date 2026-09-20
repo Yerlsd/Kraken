@@ -120,8 +120,30 @@ class LocalGameManager {
                 }
 
                 let process = Process()
+                process.currentDirectoryURL = location.deletingLastPathComponent()
                 process.arguments = [location.path] + target.launchArguments
                 RuntimeResolver.configure(process, for: target)
+
+                let outputPipe = Pipe()
+                let errorPipe = Pipe()
+                process.standardOutput = outputPipe
+                process.standardError = errorPipe
+
+                outputPipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+                    for line in text.split(whereSeparator: \.isNewline) {
+                        Self.log.info("[Wine stdout] \(line, privacy: .public)")
+                    }
+                }
+
+                errorPipe.fileHandleForReading.readabilityHandler = { handle in
+                    let data = handle.availableData
+                    guard !data.isEmpty, let text = String(data: data, encoding: .utf8) else { return }
+                    for line in text.split(whereSeparator: \.isNewline) {
+                        Self.log.notice("[Wine stderr] \(line, privacy: .public)")
+                    }
+                }
 
                 /*
                  Process is an Objective-C reference type and Swift 6 requires
@@ -141,14 +163,37 @@ class LocalGameManager {
 
                 try process.run()
 
+                await MainActor.run {
+                    game.launchProfile.recordSuccessfulLaunch(backend: target.graphicsBackend)
+                }
+
                 try await withTaskCancellationHandler {
                     await withCheckedContinuation { continuation in
+                        final class ContinuationState: @unchecked Sendable {
+                            private var resumed = false
+                            private let lock = NSLock()
+
+                            func resumeOnce(_ continuation: CheckedContinuation<Void, Never>) {
+                                lock.lock()
+                                defer { lock.unlock() }
+                                guard !resumed else { return }
+                                resumed = true
+                                continuation.resume()
+                            }
+                        }
+
+                        let state = ContinuationState()
+
                         processBox.value.terminationHandler = { _ in
-                            continuation.resume()
+                            outputPipe.fileHandleForReading.readabilityHandler = nil
+                            errorPipe.fileHandleForReading.readabilityHandler = nil
+                            state.resumeOnce(continuation)
                         }
 
                         if !processBox.value.isRunning {
-                            continuation.resume()
+                            outputPipe.fileHandleForReading.readabilityHandler = nil
+                            errorPipe.fileHandleForReading.readabilityHandler = nil
+                            state.resumeOnce(continuation)
                         }
                     }
 

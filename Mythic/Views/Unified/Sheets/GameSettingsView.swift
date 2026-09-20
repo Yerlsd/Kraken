@@ -255,10 +255,10 @@ struct GameSettingsView: View {
                                     )
 
                                     Picker("Runtime", selection: $selectedRuntimeID) {
-                                        ForEach([Runtime.mythicEngine, Runtime.wine11]) { runtime in
+                                        ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
                                             HStack(spacing: 6) {
                                                 Text(runtime.name)
-                                                Text(runtime.id == .wine11 ? "Engine 3" : "Engine 2")
+                                                Text(runtime.id == .wine11 ? "Engine 3" : (runtime.id == .gptk ? "GPTK" : "Engine 2"))
                                                     .font(.caption)
                                                     .foregroundStyle(.secondary)
                                             }
@@ -276,16 +276,7 @@ struct GameSettingsView: View {
                                         profile.container = compatibleContainerURL(for: newValue)
                                             .map(ContainerReference.init(url:))
 
-                                        print("🐛 [Picker] BEFORE assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-
                                         game.launchProfile = profile
-
-                                        print("🐛 [Picker] AFTER assignment: game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-                                        print("🐛 [Picker] About to persist library...")
-
-                                        GameDataStore.shared.persistLibrary()
-
-                                        print("🐛 [Picker] Persist complete. Game in library: \(GameDataStore.shared.library.first(where: { $0.id == game.id })?.launchProfile.runtimeOverride ?? "NOT FOUND")")
                                     }
 
                                     ContainerSettingsView(
@@ -294,6 +285,33 @@ struct GameSettingsView: View {
                                         selectedRuntimeID: game.launchProfile.effectiveRuntimeID
                                     )
                                     .disabled(game.launchProfile.runtimeOverride == nil)
+
+                                    if game.launchProfile.effectiveRuntimeID == .wine11 {
+                                        Picker("Graphics backend", selection: graphicsBackendSelection) {
+                                            Text("Automatic (Recommended)").tag(GraphicsBackend.automatic)
+                                            Text("Apple D3DMetal (DirectX 11/12)").tag(GraphicsBackend.d3dmetal)
+                                            Text("DXVK (Vulkan Translation)").tag(GraphicsBackend.dxvk)
+                                            Text("WineD3D (Built-in)").tag(GraphicsBackend.wined3d)
+                                        }
+                                        .disabled(game.launchProfile.runtimeOverride == nil)
+                                    }
+
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Picker("Reported GPU Memory", selection: reportedMemorySelection) {
+                                            let autoMB = ReportedGPUMemoryResolver.shared.automaticMegabytes()
+                                            Text("Automatic (\(autoMB) MB)").tag(0)
+                                            Text("1024 MB (1 GB)").tag(1024)
+                                            Text("2048 MB (2 GB)").tag(2048)
+                                            Text("4095 MB (4 GB)").tag(4095)
+                                            Text("8192 MB (8 GB)").tag(8192)
+                                            Text("16384 MB (16 GB)").tag(16384)
+                                        }
+
+                                        Text("Adjusting Reported GPU Memory changes the VRAM size reported to Windows games. It does not reserve physical RAM, but misconfiguration can cause crashes or high memory pressure.")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
                                 }
                             }
                         }
@@ -304,18 +322,8 @@ struct GameSettingsView: View {
         }
         .ignoresSafeArea(edges: .top)
         .task {
-            print("🐛 [Task] Settings opened. game.launchProfile.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
-            print("🐛 [Task] Game ID: \(game.id)")
-            print("🐛 [Task] About to read from library...")
-            if let canonicalGame = GameDataStore.shared.library.first(where: { $0.id == game.id }) {
-                print("🐛 [Task] Canonical Game runtimeOverride = \(String(describing: canonicalGame.launchProfile.runtimeOverride))")
-            } else {
-                print("🐛 [Task] Game not found in library!")
-            }
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
-            print("🐛 [Task] selectedRuntimeID set to: \(selectedRuntimeID)")
             ensureCompatibleContainer()
-            print("🐛 [Task] ensureCompatibleContainer done. game.runtimeOverride = \(String(describing: game.launchProfile.runtimeOverride))")
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue
@@ -380,6 +388,39 @@ private extension GameSettingsView {
                     profile.clearRuntimeOverride()
                 }
 
+                game.launchProfile = profile
+            }
+        )
+    }
+
+    var reportedMemorySelection: Binding<Int> {
+        Binding(
+            get: {
+                switch game.launchProfile.reportedGPUMemoryPolicy {
+                case .automatic:
+                    return 0
+                case .manual(let mb):
+                    return mb
+                }
+            },
+            set: { newValue in
+                var profile = game.launchProfile
+                if newValue == 0 {
+                    profile.selectReportedGPUMemoryPolicy(.automatic)
+                } else {
+                    profile.selectReportedGPUMemoryPolicy(.manual(megabytes: newValue))
+                }
+                game.launchProfile = profile
+            }
+        )
+    }
+
+    var graphicsBackendSelection: Binding<GraphicsBackend> {
+        Binding(
+            get: { game.launchProfile.graphicsBackend },
+            set: { newValue in
+                var profile = game.launchProfile
+                profile.selectGraphicsBackend(newValue)
                 game.launchProfile = profile
             }
         )

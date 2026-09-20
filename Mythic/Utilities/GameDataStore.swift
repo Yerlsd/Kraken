@@ -224,9 +224,6 @@ import OSLog
     // MARK: - Persistence
 
     private func persistLibrary() {
-        print("💾 [GameDataStore] persistLibrary() called")
-        print("💾 [GameDataStore] isPersistenceSuspended: \(isPersistenceSuspended)")
-
         guard !isPersistenceSuspended else {
             /*
              Deliberate no-op. The stored payload holds records we could not
@@ -240,21 +237,17 @@ import OSLog
             return
         }
 
-        print("💾 [GameDataStore] Encoding \(library.count) games to UserDefaults")
-
         do {
             try store.encodeAndSet(
                 library.map({ AnyGame($0) }),
                 forKey: Self.libraryKey
             )
             persistenceFailureDescription = nil
-            print("💾 [GameDataStore] ✅ Persistence successful")
         } catch {
             persistenceFailureDescription = error.localizedDescription
             log.error(
                 "Unable to persist game library: \(error.localizedDescription, privacy: .public)"
             )
-            print("💾 [GameDataStore] ❌ Persistence failed: \(error.localizedDescription)")
         }
     }
 
@@ -303,19 +296,11 @@ import OSLog
             _ = game._horizontalImageURL
         } onChange: { [weak self] in
             Task { @MainActor in
-                guard let self else {
-                    print("💾 [GameDataStore] onChange fired but self is nil")
-                    return
-                }
+                guard let self else { return }
 
                 guard let game = self.library.first(where: { $0.id == gameID }) else {
-                    print("💾 [GameDataStore] onChange fired but game \(gameID) not found in library")
                     return
                 }
-
-                print("💾 [GameDataStore] onChange fired for game: \(game.id) (\(game.title))")
-                print("💾 [GameDataStore] Current launchProfile.effectiveRuntimeID: \(game.launchProfile.effectiveRuntimeID)")
-                print("💾 [GameDataStore] Current launchProfile.runtimeOverride: \(String(describing: game.launchProfile.runtimeOverride))")
 
                 self.persistLibrary()
                 self.observeGameChanges(for: game)

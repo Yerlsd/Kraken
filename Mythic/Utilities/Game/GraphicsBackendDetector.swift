@@ -33,22 +33,10 @@ struct GraphicsBackendDetector {
     /// Check if DXVK is available for this runtime.
     private static func isDXVKAvailable(for runtimeID: RuntimeID) -> Bool {
         switch runtimeID {
-        case .mythicEngine:
-            // Engine 2 bundles DXVK
+        case .mythicEngine, .wine11:
             return runtimeID.providesDXVK
 
-        case .wine11:
-            // Wine 11: check if DXVK DLLs are installed
-            let runtime = Engine.wineRuntime(for: runtimeID)
-            guard let bundleURL = runtime.wineBundleURL else { return false }
-
-            let dxvkPath = bundleURL.appending(path: "Contents/Resources/wine/lib/wine/x86_64-windows/d3d11.dll")
-
-            // Check if it's a DXVK DLL (different size/signature than Wine's built-in)
-            guard FileManager.default.fileExists(atPath: dxvkPath.path) else { return false }
-
-            // TODO: Distinguish DXVK DLL from Wine's built-in d3d11.dll
-            // For now, assume Wine 11 does not bundle DXVK
+        case .gptk:
             return false
         }
     }
@@ -56,40 +44,24 @@ struct GraphicsBackendDetector {
     /// Check if D3DMetal is available.
     private static func isD3DMetalAvailable(for runtimeID: RuntimeID) -> Bool {
         switch runtimeID {
-        case .mythicEngine:
-            // Engine 2 does not use D3DMetal
+        case .mythicEngine, .wine11:
+            // Stock Wine 11 and Engine 2 default do not provide D3DMetal
             return false
 
-        case .wine11:
-            // Check for D3DMetal.framework in Wine 11 runtime
-            let runtime = Engine.wineRuntime(for: runtimeID)
-            guard let bundleURL = runtime.wineBundleURL else { return false }
-
-            let frameworkPath = bundleURL.appending(
-                path: "Contents/Resources/wine/lib/external/D3DMetal.framework"
-            )
-
-            return FileManager.default.fileExists(atPath: frameworkPath.path)
+        case .gptk:
+            return GPTKInstaller.isInstalled(for: runtimeID)
         }
     }
 
     /// Check if DXMT is available.
     private static func isDXMTAvailable(for runtimeID: RuntimeID) -> Bool {
         switch runtimeID {
-        case .mythicEngine:
-            // Engine 2 does not use DXMT
+        case .mythicEngine, .gptk:
             return false
 
         case .wine11:
-            // Check for DXMT .so files in Wine 11 runtime
-            let runtime = Engine.wineRuntime(for: runtimeID)
-            guard let bundleURL = runtime.wineBundleURL else { return false }
-
-            let dxmtPath = bundleURL.appending(
-                path: "Contents/Resources/wine/lib/wine/x86_64-unix/d3d11.so"
-            )
-
-            return FileManager.default.fileExists(atPath: dxmtPath.path)
+            // DXMT is currently not packaged in Wine 11
+            return false
         }
     }
 }

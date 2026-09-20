@@ -98,3 +98,5 @@ fastlane/test_output
 iOSInjectionProject/
 
 *.profraw
+*.dxvk-cache
+*.log
