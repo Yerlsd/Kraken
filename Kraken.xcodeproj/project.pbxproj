@@ -156,6 +156,7 @@
 		CA220000000000000000002A /* ProcessMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000029 /* ProcessMonitor.swift */; };
 		CA220000000000000000002C /* LaunchSessionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA220000000000000000002B /* LaunchSessionTests.swift */; };
 		CA220000000000000000002E /* RuntimePackageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA220000000000000000002D /* RuntimePackageTests.swift */; };
+		CA2200000000000000000032 /* ContainerRuntimeBindingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000031 /* ContainerRuntimeBindingTests.swift */; };
 		DF33D5E97B6044AD8C6F582C /* GraphicsBackendDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C958 /* GraphicsBackendDetector.swift */; };
 		DF33D5E97B6044AD8C6F583A /* GPTKInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C96B /* GPTKInstaller.swift */; };
 		FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B801E98A17B24D94B7F3A120 /* GraphicsBackendResolver.swift */; };
@@ -326,6 +327,7 @@
 		CA2200000000000000000029 /* ProcessMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessMonitor.swift; sourceTree = "<group>"; };
 		CA220000000000000000002B /* LaunchSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchSessionTests.swift; sourceTree = "<group>"; };
 		CA220000000000000000002D /* RuntimePackageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RuntimePackageTests.swift; sourceTree = "<group>"; };
+		CA2200000000000000000031 /* ContainerRuntimeBindingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContainerRuntimeBindingTests.swift; sourceTree = "<group>"; };
 		a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchProfileMergeTests.swift; sourceTree = "<group>"; };
 		d12844a5aba84e83b00c3038 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -741,6 +743,7 @@
 				CA2200000000000000000025 /* LaunchPlanTests.swift */,
 				CA220000000000000000002B /* LaunchSessionTests.swift */,
 				CA220000000000000000002D /* RuntimePackageTests.swift */,
+				CA2200000000000000000031 /* ContainerRuntimeBindingTests.swift */,
 				d12844a5aba84e83b00c3038 /* PersistenceTests.swift */,
 				a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */,
 				4e80d464b7ab4fa4958233a0 /* RuntimeResolverTests.swift */,
@@ -1070,6 +1073,7 @@
 				CA2200000000000000000026 /* LaunchPlanTests.swift in Sources */,
 				CA220000000000000000002C /* LaunchSessionTests.swift in Sources */,
 				CA220000000000000000002E /* RuntimePackageTests.swift in Sources */,
+				CA2200000000000000000032 /* ContainerRuntimeBindingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
