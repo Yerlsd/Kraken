@@ -133,6 +133,13 @@ class LocalGameManager {
                 session.transitionToStartingRuntime()
                 session.transitionToStartingProcess()
 
+                // Preflight storage readiness to prevent Wine blocking on iCloud / APFS dataless stubs
+                let storageResult = GameStoragePreflight.inspect(at: location)
+                if storageResult.datalessFileCount > 0 {
+                    Self.log.warning("Game assets contain \(storageResult.datalessFileCount, privacy: .public) dataless files offloaded to iCloud. Triggering background materialization.")
+                    GameStoragePreflight.materializeDatalessFiles(in: location)
+                }
+
                 let process = Process()
                 process.currentDirectoryURL = location.deletingLastPathComponent()
                 process.arguments = [location.path] + target.launchArguments
