@@ -5,7 +5,6 @@
 
 import Foundation
 import SwiftUI
-import SemanticVersion
 
 struct ContentView: View {
     @EnvironmentObject var networkMonitor: NetworkMonitor
@@ -14,7 +13,9 @@ struct ContentView: View {
     @Bindable private var operationManager: GameOperationManager = .shared
 
     var body: some View {
-        NavigationSplitView(sidebar: sidebar) {
+        NavigationSplitView {
+            sidebar
+        } detail: {
             HomeView()
         }
         .navigationSplitViewStyle(.balanced)
