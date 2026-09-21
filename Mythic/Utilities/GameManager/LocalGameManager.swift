@@ -122,7 +122,7 @@ class LocalGameManager {
                 session.transitionToResolving()
                 session.transitionToProvisioning()
 
-                let target = try RuntimeResolver.resolve(profile: launchProfile)
+                let target = try RuntimeResolver.resolve(profile: launchProfile, executableURL: location)
 
                 if UserDefaults.standard.bool(forKey: "minimiseOnGameLaunch") {
                     await MainActor.run {

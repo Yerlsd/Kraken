@@ -147,7 +147,10 @@ enum RuntimeResolver {
     ///
     /// This performs no mutation and no provisioning. A caller that wants a
     /// container created must do so through an explicit game operation.
-    static func resolve(profile: LaunchProfile) throws -> ResolvedLaunchTarget {
+    static func resolve(
+        profile: LaunchProfile,
+        executableURL: URL? = nil
+    ) throws -> ResolvedLaunchTarget {
         let selectedRuntimeID = runtimeID(for: profile)
 
         guard Engine.isRuntimeInstalled(selectedRuntimeID) else {
@@ -222,12 +225,19 @@ enum RuntimeResolver {
             avx2: container.settings.avx2.numericalValue != 0
         )
 
+        var effectiveLaunchArgs = profile.launchArguments
+        if resolvedBackend == .dxvk, let exe = executableURL, isUnityGame(at: exe) {
+            if !effectiveLaunchArgs.contains("-disable-gpu-skinning") {
+                effectiveLaunchArgs.append("-disable-gpu-skinning")
+            }
+        }
+
         let launchPlan = LaunchPlan(
             gameId: "game",
             gameTitle: "Game",
             sourceProvider: .local,
-            executableURL: URL(fileURLWithPath: "/drive_c/game.exe"),
-            launchArguments: profile.launchArguments,
+            executableURL: executableURL ?? URL(fileURLWithPath: "/drive_c/game.exe"),
+            launchArguments: effectiveLaunchArgs,
             runtimeID: selectedRuntimeID,
             runtimeFamily: runtimeFamily,
             runtimeVersion: runtimeVersion,
@@ -245,7 +255,7 @@ enum RuntimeResolver {
             runtime: runtime,
             container: reference,
             environment: env,
-            launchArguments: profile.launchArguments,
+            launchArguments: effectiveLaunchArgs,
             graphicsBackend: resolvedBackend,
             reportedGPUMemoryMB: reportedMemoryMB,
             plan: launchPlan
@@ -325,12 +335,19 @@ enum RuntimeResolver {
             avx2: container.settings.avx2.numericalValue != 0
         )
 
+        var effectiveLaunchArgs = profile.launchArguments
+        if resolvedBackend == .dxvk && isUnityGame(at: executableURL) {
+            if !effectiveLaunchArgs.contains("-disable-gpu-skinning") {
+                effectiveLaunchArgs.append("-disable-gpu-skinning")
+            }
+        }
+
         return LaunchPlan(
             gameId: gameId,
             gameTitle: gameTitle,
             sourceProvider: sourceProvider,
             executableURL: executableURL,
-            launchArguments: profile.launchArguments,
+            launchArguments: effectiveLaunchArgs,
             runtimeID: selectedRuntimeID,
             runtimeFamily: runtimeFamily,
             runtimeVersion: runtimeVersion,
@@ -348,6 +365,20 @@ enum RuntimeResolver {
     /// Whether a profile can currently be launched, without throwing.
     static func canLaunch(profile: LaunchProfile) -> Bool {
         (try? resolve(profile: profile)) != nil
+    }
+
+    /// Detects whether an executable belongs to a Unity game (presence of UnityPlayer.dll or a *_Data directory).
+    static func isUnityGame(at executableURL: URL) -> Bool {
+        let dir = executableURL.deletingLastPathComponent()
+        if FileManager.default.fileExists(atPath: dir.appendingPathComponent("UnityPlayer.dll").path) {
+            return true
+        }
+        if let contents = try? FileManager.default.contentsOfDirectory(atPath: dir.path) {
+            if contents.contains(where: { $0.hasSuffix("_Data") }) {
+                return true
+            }
+        }
+        return false
     }
 
     // MARK: - Environment assembly

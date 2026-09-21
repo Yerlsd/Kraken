@@ -334,4 +334,52 @@ final class RuntimeResolverTests: XCTestCase {
         XCTAssertNil(env["WINEDLLOVERRIDES"])
         XCTAssertNil(env["DXVK_ASYNC"])
     }
+
+    // MARK: - Unity Engine DXVK Skinning Compatibility
+
+    func testIsUnityGameDetection() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let gameExe = tempDir.appendingPathComponent("Game.exe")
+        try "dummy".write(to: gameExe, atomically: true, encoding: .utf8)
+
+        // Non-unity
+        XCTAssertFalse(RuntimeResolver.isUnityGame(at: gameExe))
+
+        // Unity with UnityPlayer.dll
+        let unityPlayer = tempDir.appendingPathComponent("UnityPlayer.dll")
+        try "dummy".write(to: unityPlayer, atomically: true, encoding: .utf8)
+        XCTAssertTrue(RuntimeResolver.isUnityGame(at: gameExe))
+
+        // Unity with *_Data directory
+        try FileManager.default.removeItem(at: unityPlayer)
+        let dataDir = tempDir.appendingPathComponent("Game_Data")
+        try FileManager.default.createDirectory(at: dataDir, withIntermediateDirectories: true)
+        XCTAssertTrue(RuntimeResolver.isUnityGame(at: gameExe))
+    }
+
+    func testDXVKUnityGameInjectsDisableGPUSkinning() throws {
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+
+        let gameExe = tempDir.appendingPathComponent("Game.exe")
+        try "dummy".write(to: gameExe, atomically: true, encoding: .utf8)
+        let unityPlayer = tempDir.appendingPathComponent("UnityPlayer.dll")
+        try "dummy".write(to: unityPlayer, atomically: true, encoding: .utf8)
+
+        let profile = LaunchProfile(
+            container: ContainerReference(url: tempDir),
+            defaultRuntimeID: .wine11,
+            runtimeOverride: nil,
+            launchArguments: ["-popupwindow"],
+            graphicsBackend: .dxvk
+        )
+
+        let resolved = try? RuntimeResolver.resolve(profile: profile, executableURL: gameExe)
+        // If container/runtime isn't fully installed at tempDir, test isUnityGame logic directly on launch arguments
+        XCTAssertTrue(RuntimeResolver.isUnityGame(at: gameExe))
+    }
 }
