@@ -1,11 +1,7 @@
 //
 //  GameListView.swift
-//  Mythic
+//  Kraken
 //
-//  Created by vapidinfinity (esi) on 6/3/2024.
-//
-
-// Copyright © 2023-2025 vapidinfinity
 
 import Foundation
 import SwiftUI
@@ -15,71 +11,88 @@ struct GameListView: View {
     @Bindable var gameDataStore: GameDataStore = .shared
 
     @CodableAppStorage("gameListLayout") var layout: GameListViewModel.Layout = .grid
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 270.0
+    @AppStorage("gameCardSize") private var gameCardSize: Double = 270
 
     @State private var isGameImportViewPresented = false
 
     private var adaptiveCardWidth: CGFloat {
-        min(max(gameCardSize, 250), 340)
+        min(max(gameCardSize, 240), 340)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if gameDataStore.library.isEmpty {
-                VStack(spacing: 14) {
-                    ContentUnavailableView(
-                        "No games found",
-                        systemImage: "gamecontroller",
-                        description: Text("Games in your library will appear here.")
-                    )
-
-                    Button {
+                ContentUnavailableView {
+                    Label("Your Library Is Empty", systemImage: "gamecontroller")
+                } description: {
+                    Text("Add a game to see it here.")
+                } actions: {
+                    Button("Add Game") {
                         isGameImportViewPresented = true
-                    } label: {
-                        Label("Import Game", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .sheet(isPresented: $isGameImportViewPresented) {
-                    GameImportView(isPresented: $isGameImportViewPresented)
-                }
+            } else if viewModel.sortedLibrary.isEmpty {
+                ContentUnavailableView(
+                    "No Matching Games",
+                    systemImage: "magnifyingglass",
+                    description: Text("Try a different search or filter.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                ScrollView(.vertical) {
-                    switch layout {
-                    case .grid:
-                        LazyVGrid(
-                            columns: [
-                                GridItem(
-                                    .adaptive(minimum: adaptiveCardWidth, maximum: 340),
-                                    spacing: 18
-                                )
-                            ],
-                            spacing: 18
-                        ) {
-                            ForEach(viewModel.sortedLibrary) { game in
-                                if let binding = gameDataStore.binding(for: game.id) {
-                                    GameCard(game: binding)
-                                }
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 8) {
+                            Text("\(viewModel.sortedLibrary.count) \(viewModel.sortedLibrary.count == 1 ? "game" : "games")")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.secondary)
 
-                    case .list:
-                        LazyVStack(spacing: 8) {
-                            ForEach(viewModel.sortedLibrary) { game in
-                                if let binding = gameDataStore.binding(for: game.id) {
-                                    ListGameCard(game: binding)
-                                }
+                            Spacer()
+
+                            if !viewModel.searchTokens.isEmpty {
+                                Text("Filtered")
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.quaternary, in: .capsule)
                             }
                         }
-                        .frame(maxWidth: 1080)
-                        .frame(maxWidth: .infinity)
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 18)
+
+                        switch layout {
+                        case .grid:
+                            LazyVGrid(
+                                columns: [
+                                    GridItem(
+                                        .adaptive(minimum: adaptiveCardWidth, maximum: 340),
+                                        spacing: 18
+                                    )
+                                ],
+                                spacing: 18
+                            ) {
+                                ForEach(viewModel.sortedLibrary) { game in
+                                    if let binding = gameDataStore.binding(for: game.id) {
+                                        GameCard(game: binding)
+                                    }
+                                }
+                            }
+
+                        case .list:
+                            LazyVStack(spacing: 8) {
+                                ForEach(viewModel.sortedLibrary) { game in
+                                    if let binding = gameDataStore.binding(for: game.id) {
+                                        ListGameCard(game: binding)
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: 1080)
+                            .frame(maxWidth: .infinity)
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 18)
                 }
                 .searchable(
                     text: $viewModel.searchString,
@@ -103,7 +116,10 @@ struct GameListView: View {
             }
         }
         .animation(.easeInOut, value: layout)
-        .animation(.default, value: viewModel.sortedLibrary)
+        .sheet(isPresented: $isGameImportViewPresented) {
+            GameImportView(isPresented: $isGameImportViewPresented)
+                .fixedSize()
+        }
     }
 }
 

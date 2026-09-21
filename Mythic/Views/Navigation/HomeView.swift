@@ -2,96 +2,80 @@
 //  HomeView.swift
 //  Kraken
 //
-//  Created by vapidinfinity (esi) on 12/9/2023.
-//
-
-// Copyright © 2023-2025 vapidinfinity
 
 import SwiftUI
-import Cocoa
 import SwordRPC
 
-/// The main view displaying the home screen of the Kraken app.
 struct HomeView: View {
     @EnvironmentObject var networkMonitor: NetworkMonitor
     @Bindable var gameDataStore: GameDataStore = .shared
 
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 260.0
+    @State private var isGameImportPresented = false
+    @AppStorage("gameCardSize") private var gameCardSize: Double = 260
 
-    @State private var isImageEmpty = true
-    @State private var isFavouritesSectionExpanded = true
-    @State private var isContainersSectionExpanded = true
-
-    private var favouriteGamesExcludingRecent: [Game] {
+    private var favouriteGames: [Game] {
         gameDataStore.library
-            .filter(\.self.isFavourited)
-            .filter { $0 != gameDataStore.recent }
+            .filter(\.isFavourited)
+            .filter { $0.id != gameDataStore.recent?.id }
+            .sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
     }
 
     private var adaptiveCardWidth: CGFloat {
-        min(max(gameCardSize, 240), 330)
+        min(max(gameCardSize, 220), 330)
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    continuePlayingView
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 250, maxHeight: min(360, geometry.size.height * 0.52))
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                heroSection
 
-                    Form {
-                        Section("Your Favourites", isExpanded: $isFavouritesSectionExpanded) {
-                            if favouriteGamesExcludingRecent.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ContentUnavailableView(
-                                        "No Favourites",
-                                        systemImage: "star.slash",
-                                        description: Text("Favourite a game to keep it close at hand.")
-                                    )
-                                    Spacer()
-                                }
-                                .padding(.vertical, 8)
-                            } else {
-                                LazyVGrid(
-                                    columns: [
-                                        GridItem(.adaptive(minimum: adaptiveCardWidth, maximum: 330), spacing: 14)
-                                    ],
-                                    spacing: 14
-                                ) {
-                                    ForEach(favouriteGamesExcludingRecent) { game in
-                                        if let binding = gameDataStore.binding(for: game.id) {
-                                            GameCard(game: binding)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 6)
+                if !favouriteGames.isEmpty {
+                    sectionHeader(
+                        title: "Favourites",
+                        subtitle: "Games you want close at hand"
+                    )
+
+                    LazyVGrid(
+                        columns: [
+                            GridItem(.adaptive(minimum: adaptiveCardWidth, maximum: 330), spacing: 16)
+                        ],
+                        spacing: 16
+                    ) {
+                        ForEach(favouriteGames) { game in
+                            if let binding = gameDataStore.binding(for: game.id) {
+                                GameCard(game: binding)
                             }
                         }
-
-                        Section("Your Containers", isExpanded: $isContainersSectionExpanded) {
-                            ContainerListView()
-                        }
                     }
-                    .formStyle(.grouped)
+                }
+
+                if gameDataStore.library.isEmpty {
+                    emptyLibrary
                 }
             }
+            .padding(.horizontal, 22)
+            .padding(.top, 18)
+            .padding(.bottom, 28)
         }
-        .ignoresSafeArea(edges: .top)
-        .customTransform { view in
-            if #available(macOS 15.0, *) {
-                view
-                    .toolbar(removing: .title)
-                    .toolbarBackgroundVisibility(.hidden)
-            } else {
-                view.toolbarBackground(.hidden)
+        .background(.background)
+        .navigationTitle("Home")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    isGameImportPresented = true
+                } label: {
+                    Label("Add Game", systemImage: "plus")
+                }
+                .buttonStyle(.borderedProminent)
             }
         }
-        .navigationTitle("Home")
+        .sheet(isPresented: $isGameImportPresented) {
+            GameImportView(isPresented: $isGameImportPresented)
+                .fixedSize()
+        }
         .task(priority: .background) {
             discordRPC.setPresence({
-                var presence: RichPresence = .init()
+                var presence = RichPresence()
                 presence.details = "Viewing home"
                 presence.state = "Idle"
                 presence.timestamps.start = .now
@@ -101,72 +85,85 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
-    private var continuePlayingView: some View {
-        if let recentGame = gameDataStore.recent {
-            ZStack(alignment: .bottomLeading) {
-                GameImageCard(url: recentGame.horizontalImageURL, isImageEmpty: $isImageEmpty)
-                    .aspectRatio(16 / 9, contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
+    private var heroSection: some View {
+        Group {
+            if let recentGame = gameDataStore.recent,
+               let binding = gameDataStore.binding(for: recentGame.id) {
+                VStack(alignment: .leading, spacing: 10) {
+                    sectionHeader(
+                        title: "Continue Playing",
+                        subtitle: "Jump straight back in"
+                    )
 
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0.15),
-                        .init(color: .black.opacity(0.78), location: 1.0)
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+                    HeroGameCard(game: binding)
+                        .frame(minHeight: 300, maxHeight: 410)
+                }
+            } else {
+                welcomeCard
+            }
+        }
+    }
+
+    private var welcomeCard: some View {
+        HStack(spacing: 18) {
+            Image(systemName: "gamecontroller.fill")
+                .font(.system(size: 34, weight: .medium))
+                .foregroundStyle(.tint)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(gameDataStore.library.isEmpty ? "Welcome to Kraken" : "Your library is ready")
+                    .font(.title2.weight(.semibold))
+
+                Text(
+                    gameDataStore.library.isEmpty
+                        ? "Add a Windows game to get started. Kraken keeps the compatibility details out of your way."
+                        : "Launch a game from your library and it will appear here for quick access."
                 )
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
-                HStack(alignment: .bottom, spacing: 14) {
-                    if isImageEmpty && recentGame.isFallbackImageAvailable {
-                        GameImageCard.FallbackGameImageCard(game: .constant(recentGame))
-                            .frame(width: 56, height: 56)
-                    }
-
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("CONTINUE PLAYING")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.72))
-
-                        GameCard.TitleAndInformationView(
-                            game: .constant(recentGame),
-                            withSubscriptedInfo: true
-                        )
-                        .foregroundStyle(.white)
-
-                        if let recentBinding = gameDataStore.binding(for: recentGame.id) {
-                            GameCard.ButtonsView(game: recentBinding, withLabel: true)
-                                .clipShape(.capsule)
-                        }
-                    }
+                Button("Add Game") {
+                    isGameImportPresented = true
                 }
-                .padding(20)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .padding(.top, 4)
             }
-            .clipShape(.rect(cornerRadius: 18))
-            .contentShape(.rect(cornerRadius: 18))
-        } else {
-            HStack(spacing: 18) {
-                Image(systemName: "gamecontroller")
-                    .font(.system(size: 36, weight: .medium))
-                    .foregroundStyle(.secondary)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("Welcome to Kraken")
-                        .font(.title2.weight(.semibold))
+            Spacer()
+        }
+        .padding(24)
+        .frame(maxWidth: .infinity, minHeight: 210, alignment: .leading)
+        .background(.thinMaterial, in: .rect(cornerRadius: 20))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        }
+    }
 
-                    Text("Your recently played game will appear here. Launch a game from your Library to get started.")
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer()
+    private var emptyLibrary: some View {
+        ContentUnavailableView {
+            Label("No Games Yet", systemImage: "gamecontroller")
+        } description: {
+            Text("Add or import your games and they will appear in your unified Kraken library.")
+        } actions: {
+            Button("Add Game") {
+                isGameImportPresented = true
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.background.secondary)
-            .clipShape(.rect(cornerRadius: 18))
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 20)
+    }
+
+    private func sectionHeader(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.title2.weight(.semibold))
+
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
     }
 }

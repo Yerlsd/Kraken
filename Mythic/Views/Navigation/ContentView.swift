@@ -1,13 +1,7 @@
 //
 //  ContentView.swift
-//  Mythic
+//  Kraken
 //
-//  Created by vapidinfinity (esi) on 8/9/2023.
-//
-//  Reference
-//  https://github.com/1998code/SwiftUI2-MacSidebar
-
-// Copyright © 2023-2025 vapidinfinity
 
 import Foundation
 import SwiftUI
@@ -15,108 +9,125 @@ import SemanticVersion
 
 struct ContentView: View {
     @EnvironmentObject var networkMonitor: NetworkMonitor
-    
+
     @ObservedObject private var updateController: SparkleUpdateController = .shared
     @Bindable private var operationManager: GameOperationManager = .shared
-    
-    var body: some View {
-        NavigationSplitView(
-            sidebar: {
-                List {
-                    Section {
-                        NavigationLink(destination: HomeView()) {
-                            Label("Home", systemImage: "house")
-                                .help("Everything in one place")
-                        }
-                        
-                        NavigationLink(destination: LibraryView()) {
-                            Label("Library", systemImage: "books.vertical")
-                                .help("View your games")
-                        }
-                        
-                        NavigationLink(destination: StoreView()) {
-                            Label("Store", systemImage: "bag")
-                                .help("Purchase new games from Epic")
-                        }
-                    }
-                    
-                    Section {
-                        NavigationLink(destination: ContainersView()) {
-                            Label("Containers", systemImage: "cube")
-                                .help("Manage containers for Windows® applications")
-                        }
-                        
-                        Button("Support", systemImage: "questionmark.bubble") {
-                            SupportWindowController.show()
-                        }
-                        .help("Get support")
-                        .buttonStyle(.plain)
-                        
-                        NavigationLink(destination: AccountsView()) {
-                            Label("Accounts", systemImage: "person.2")
-                                .help("View all currently signed in accounts")
-                        }
-                    } header: {
-                        Text("Management")
-                    }
-                }
 
-                // separate downloads view from main list because alignment doesn't work within the main list
-                if !operationManager.queue.isEmpty {
-                    List {
-                        NavigationLink(destination: OperationsView()) {
-                            Label("Operations", systemImage: "progress.indicator")
-                                .help("View all active game operations")
-                        }
-                    }
-                    .frame(maxHeight: 40)
-                    .scrollDisabled(true)
-                    .scrollIndicators(.hidden)
-                }
-                
-                switch updateController.state {
-                case .updateAvailable:
-                    updateBlock("Update Available", buttonText: "Show More") {
-                        updateController.checkForUpdates(userInitiated: true)
-                    }
-                case .readyToRelaunch(let acknowledgement):
-                    updateBlock("Update Ready", buttonText: "Relaunch") {
-                        acknowledgement(.update)
-                    }
-                default:
-                    EmptyView()
-                }
-            }, detail: {
-                HomeView()
-            }
-        )
+    var body: some View {
+        NavigationSplitView(sidebar: sidebar) {
+            HomeView()
+        }
+        .navigationSplitViewStyle(.balanced)
         .toolbar {
             ToolbarItem(placement: .status) {
                 if !networkMonitor.isConnected {
-                    Image(systemName: "network")
-                        .symbolVariant(.slash)
+                    Label("Offline", systemImage: "wifi.slash")
+                        .foregroundStyle(.secondary)
                         .help("Kraken is not connected to the internet.")
                 }
             }
         }
     }
 
-    @ViewBuilder
-    private func updateBlock(_ title: String, buttonText: String, action: @escaping () -> Void) -> some View {
-        VStack {
-            Label(title, systemImage: "info.circle")
-                .font(.footnote)
+    private var sidebar: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Image("KrakenLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 28, height: 28)
+
+                Text("Kraken")
+                    .font(.headline)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+
+            List {
+                Section("Library") {
+                    NavigationLink(destination: HomeView()) {
+                        Label("Home", systemImage: "house")
+                    }
+
+                    NavigationLink(destination: LibraryView()) {
+                        Label("Library", systemImage: "square.grid.2x2")
+                    }
+                }
+
+                Section("Manage") {
+                    NavigationLink(destination: ContainersView()) {
+                        Label("Containers", systemImage: "shippingbox")
+                    }
+
+                    NavigationLink(destination: AccountsView()) {
+                        Label("Accounts", systemImage: "person.2")
+                    }
+                }
+
+                Section("More") {
+                    NavigationLink(destination: StoreView()) {
+                        Label("Store", systemImage: "bag")
+                    }
+
+                    Button {
+                        SupportWindowController.show()
+                    } label: {
+                        Label("Support", systemImage: "questionmark.circle")
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !operationManager.queue.isEmpty {
+                Divider()
+
+                NavigationLink(destination: OperationsView()) {
+                    HStack(spacing: 9) {
+                        Image(systemName: "arrow.down.circle")
+                        Text("Operations")
+                        Spacer()
+                        Text("\(operationManager.queue.count)")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                }
+                .buttonStyle(.plain)
+            }
+
+            switch updateController.state {
+            case .updateAvailable:
+                updateBlock("Update Available", buttonText: "Show More") {
+                    updateController.checkForUpdates(userInitiated: true)
+                }
+            case .readyToRelaunch(let acknowledgement):
+                updateBlock("Update Ready", buttonText: "Relaunch") {
+                    acknowledgement(.update)
+                }
+            default:
+                EmptyView()
+            }
+        }
+    }
+
+    private func updateBlock(
+        _ title: String,
+        buttonText: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: "arrow.down.app")
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
 
-            Button(action: action, label: {
-                Text(buttonText)
-                    .frame(maxWidth: .infinity)
-            })
-            .buttonStyle(.borderedProminent)
-            .clipShape(.capsule)
+            Button(buttonText, action: action)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
         }
-        .padding(8)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
     }
 }
 
