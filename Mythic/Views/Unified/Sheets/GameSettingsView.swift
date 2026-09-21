@@ -26,6 +26,7 @@ struct GameSettingsView: View {
     @State private var isCompatibilityOverrideExpanded = false
 
     @State private var selectedRuntimeID: RuntimeID = .mythicEngine
+    @State private var selectedGraphicsBackend: GraphicsBackend = .automatic
     @State private var storagePreflightResult: StoragePreflightResult?
 
     var body: some View {
@@ -325,14 +326,15 @@ struct GameSettingsView: View {
                                     .disabled(game.launchProfile.runtimeOverride == nil)
                                     .onChange(of: selectedRuntimeID) { oldValue, newValue in
                                         guard game.launchProfile.runtimeOverride != nil else { return }
-                                        guard Engine.isRuntimeInstalled(newValue) else { return }
-                                        guard oldValue != newValue else { return }
+                                        guard Engine.isRuntimeInstalled(newValue), oldValue != newValue else {
+                                            selectedRuntimeID = oldValue
+                                            return
+                                        }
 
                                         var profile = game.launchProfile
                                         profile.selectRuntime(newValue)
                                         profile.container = compatibleContainerURL(for: newValue)
                                             .map(ContainerReference.init(url:))
-
                                         game.launchProfile = profile
                                     }
 
@@ -343,15 +345,46 @@ struct GameSettingsView: View {
                                     )
                                     .disabled(game.launchProfile.runtimeOverride == nil)
 
-                                    if game.launchProfile.effectiveRuntimeID == .wine11 {
-                                        Picker("Graphics backend", selection: graphicsBackendSelection) {
-                                            Text("Automatic (Recommended)").tag(GraphicsBackend.automatic)
-                                            Text("Apple D3DMetal (DirectX 11/12)").tag(GraphicsBackend.d3dmetal)
-                                            Text("DXVK (Vulkan Translation)").tag(GraphicsBackend.dxvk)
-                                            Text("WineD3D (Built-in)").tag(GraphicsBackend.wined3d)
+                                    Picker("Graphics", selection: $selectedGraphicsBackend) {
+                                        Text(GraphicsBackend.automatic.displayName)
+                                            .tag(GraphicsBackend.automatic)
+
+                                        ForEach(GraphicsBackend.allCases.filter { $0 != .automatic }, id: \.self) { backend in
+                                            HStack(spacing: 6) {
+                                                Text(backend.displayName)
+                                                if !availableGraphicsBackends.contains(backend) {
+                                                    Text("Unavailable")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            .tag(backend)
                                         }
-                                        .disabled(game.launchProfile.runtimeOverride == nil)
                                     }
+                                    .disabled(game.launchProfile.runtimeOverride == nil)
+                                    .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
+                                        guard oldValue != newValue else { return }
+
+                                        if newValue != .automatic && !availableGraphicsBackends.contains(newValue) {
+                                            selectedGraphicsBackend = oldValue
+                                            return
+                                        }
+
+                                        var profile = game.launchProfile
+                                        profile.selectGraphicsBackend(newValue)
+                                        game.launchProfile = profile
+                                    }
+
+                                    Text(
+                                        selectedGraphicsBackend == .automatic
+                                            ? "Kraken selects an available graphics backend automatically."
+                                            : availableGraphicsBackends.contains(selectedGraphicsBackend)
+                                                ? "Kraken will use the selected backend for this game."
+                                                : "The selected backend is unavailable for the current runtime and launch will fail until it is changed."
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
 
                                     VStack(alignment: .leading, spacing: 4) {
                                         Picker("Reported GPU Memory", selection: reportedMemorySelection) {
@@ -380,6 +413,7 @@ struct GameSettingsView: View {
         .ignoresSafeArea(edges: .top)
         .task {
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
+            selectedGraphicsBackend = game.launchProfile.graphicsBackend
             ensureCompatibleContainer()
             if case .installed(let location, _) = game.installationState {
                 Task.detached(priority: .userInitiated) {
@@ -392,6 +426,15 @@ struct GameSettingsView: View {
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue
+            if selectedGraphicsBackend != .automatic && !availableGraphicsBackends.contains(selectedGraphicsBackend) {
+                selectedGraphicsBackend = .automatic
+                var profile = game.launchProfile
+                profile.selectGraphicsBackend(.automatic)
+                game.launchProfile = profile
+            }
+        }
+        .onChange(of: game.launchProfile.graphicsBackend) { _, newValue in
+            selectedGraphicsBackend = newValue
         }
 
         bottomBar
@@ -399,6 +442,10 @@ struct GameSettingsView: View {
 }
 
 private extension GameSettingsView {
+    var availableGraphicsBackends: Set<GraphicsBackend> {
+        GraphicsBackendDetector.availableBackends(for: game.launchProfile.effectiveRuntimeID)
+    }
+
     func compatibleContainerURL(for runtimeID: RuntimeID) -> URL? {
         Wine.containerObjects
             .filter { $0.runtimeID == runtimeID }
@@ -480,16 +527,6 @@ private extension GameSettingsView {
         )
     }
 
-    var graphicsBackendSelection: Binding<GraphicsBackend> {
-        Binding(
-            get: { game.launchProfile.graphicsBackend },
-            set: { newValue in
-                var profile = game.launchProfile
-                profile.selectGraphicsBackend(newValue)
-                game.launchProfile = profile
-            }
-        )
-    }
 
     func submitLaunchArgument() {
         let cleanedArgument = typingArgument
