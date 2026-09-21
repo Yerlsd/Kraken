@@ -26,6 +26,7 @@ struct GameSettingsView: View {
     @State private var isCompatibilityOverrideExpanded = false
 
     @State private var selectedRuntimeID: RuntimeID = .mythicEngine
+    @State private var storagePreflightResult: StoragePreflightResult?
 
     var body: some View {
         GeometryReader { geometry in
@@ -202,6 +203,62 @@ struct GameSettingsView: View {
                                         NSWorkspace.shared.activateFileViewerSelecting([location])
                                     }
                                 }
+
+                                if let result = storagePreflightResult {
+                                    switch result.readiness {
+                                    case .ready:
+                                        HStack {
+                                            Image(systemName: "checkmark.seal.fill")
+                                                .foregroundStyle(.green)
+                                            Text("Storage ready (\(result.totalFilesChecked) assets verified locally)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    case let .materializationRequired(count, bytes):
+                                        VStack(alignment: .leading, spacing: 6) {
+                                            HStack(alignment: .top, spacing: 8) {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .foregroundStyle(.orange)
+                                                    .font(.headline)
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text("iCloud Offloaded Assets Detected (\(count) files)")
+                                                        .font(.subheadline)
+                                                        .bold()
+                                                    Text("\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) are currently dataless stubs. Launching without downloading will cause severe loading delays.")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.secondary)
+                                                }
+                                            }
+                                            Button("Download Game Assets Now") {
+                                                Task.detached {
+                                                    GameStoragePreflight.materializeDatalessFiles(in: location)
+                                                }
+                                            }
+                                            .controlSize(.small)
+                                        }
+                                        .padding(8)
+                                        .background(Color.orange.opacity(0.12))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+
+                                    case .cloudLocationWarning:
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Image(systemName: "icloud.and.arrow.down")
+                                                .foregroundStyle(.blue)
+                                                .font(.headline)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text("iCloud-Managed Directory Notice")
+                                                    .font(.subheadline)
+                                                    .bold()
+                                                Text("This game is stored in an iCloud folder. Under low disk space, macOS may offload assets. Moving to ~/Games or /Users/Shared is recommended.")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        .padding(8)
+                                        .background(Color.blue.opacity(0.12))
+                                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    }
+                                }
                             }
                         }
 
@@ -324,6 +381,14 @@ struct GameSettingsView: View {
         .task {
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
             ensureCompatibleContainer()
+            if case .installed(let location, _) = game.installationState {
+                Task.detached(priority: .userInitiated) {
+                    let result = GameStoragePreflight.inspect(at: location, maxFilesToScan: 5_000)
+                    await MainActor.run {
+                        storagePreflightResult = result
+                    }
+                }
+            }
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue

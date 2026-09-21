@@ -56,6 +56,9 @@ final class Legendary {
     }
     
     static func handleCLIErrorOutput(fromStandardErrorOutput output: String) throws {
+        if output.contains("No saved credentials") || output.contains("User is not logged in") {
+            throw NotSignedInError()
+        }
         for line in output.split(whereSeparator: \.isNewline) {
             if let match = try? Regex(#"(ERROR|CRITICAL): (.*)"#).firstMatch(in: line),
                let errorReason = match.last?.substring {
