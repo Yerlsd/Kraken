@@ -19,6 +19,8 @@ final class LaunchDiagnosticsTests: XCTestCase {
             .containerFailure,
             .artifactFailure,
             .environmentFailure,
+            .storageValidationFailure,
+            .storageMaterializationPending,
             .processCreationFailure,
             .processTerminationFailure,
             .unknown

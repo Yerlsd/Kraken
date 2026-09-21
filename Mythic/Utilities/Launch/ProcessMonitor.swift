@@ -48,6 +48,13 @@ final class ProcessMonitor: ProcessMonitoring, @unchecked Sendable {
         return sessions.values.filter { !$0.state.isTerminal }.count
     }
 
+    /// Checks whether an active launch session exists for a specific game identifier.
+    func isGameRunning(gameId: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return sessions.values.contains { $0.plan.gameId == gameId && !$0.state.isTerminal }
+    }
+
     /// Attaches event-driven termination observation to a Process without polling.
     func observe(
         process: Process,

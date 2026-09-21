@@ -14,6 +14,8 @@ enum LaunchFailureStage: String, Codable, Equatable, Hashable, Sendable {
     case containerFailure
     case artifactFailure
     case environmentFailure
+    case storageValidationFailure
+    case storageMaterializationPending
     case processCreationFailure
     case processTerminationFailure
     case unknown

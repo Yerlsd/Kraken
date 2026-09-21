@@ -11,6 +11,7 @@ import Foundation
 enum LaunchSourceProvider: String, Codable, Equatable, Hashable, Sendable {
     case local
     case epic
+    case steam
     case mock
     case custom
 }

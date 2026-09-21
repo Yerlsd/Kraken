@@ -160,6 +160,9 @@
 		CA2200000000000000000034 /* LaunchDiagnosticsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000033 /* LaunchDiagnosticsTests.swift */; };
 		CA2200000000000000000036 /* GameStoragePreflight.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000035 /* GameStoragePreflight.swift */; };
 		CA2200000000000000000038 /* GameStoragePreflightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000037 /* GameStoragePreflightTests.swift */; };
+		CA2200000000000000000042 /* SteamGameManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000041 /* SteamGameManager.swift */; };
+		CA2200000000000000000044 /* SteamGameImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000043 /* SteamGameImportView.swift */; };
+		CA2200000000000000000046 /* SteamProviderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA2200000000000000000045 /* SteamProviderTests.swift */; };
 		DF33D5E97B6044AD8C6F582C /* GraphicsBackendDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C958 /* GraphicsBackendDetector.swift */; };
 		DF33D5E97B6044AD8C6F583A /* GPTKInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 168EA55931EB4059A028C96B /* GPTKInstaller.swift */; };
 		FE440BF71A3C4ADE9383126E /* GraphicsBackendResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B801E98A17B24D94B7F3A120 /* GraphicsBackendResolver.swift */; };
@@ -334,6 +337,9 @@
 		CA2200000000000000000033 /* LaunchDiagnosticsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchDiagnosticsTests.swift; sourceTree = "<group>"; };
 		CA2200000000000000000035 /* GameStoragePreflight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStoragePreflight.swift; sourceTree = "<group>"; };
 		CA2200000000000000000037 /* GameStoragePreflightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameStoragePreflightTests.swift; sourceTree = "<group>"; };
+		CA2200000000000000000041 /* SteamGameManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamGameManager.swift; sourceTree = "<group>"; };
+		CA2200000000000000000043 /* SteamGameImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamGameImportView.swift; sourceTree = "<group>"; };
+		CA2200000000000000000045 /* SteamProviderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SteamProviderTests.swift; sourceTree = "<group>"; };
 		a559872628b94b2185553be4 /* LaunchProfileMergeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchProfileMergeTests.swift; sourceTree = "<group>"; };
 		d12844a5aba84e83b00c3038 /* PersistenceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -424,6 +430,7 @@
 				6A1192842EC8D4FB005A3E05 /* GameManager.swift */,
 				6A11928C2ECA0114005A3E05 /* LocalGameManager.swift */,
 				6A11928E2ECA15AD005A3E05 /* EpicGamesGameManager.swift */,
+				CA2200000000000000000041 /* SteamGameManager.swift */,
 				6A2934BE2BFCFAFD0035CE4B /* Legendary */,
 			);
 			path = GameManager;
@@ -435,6 +442,7 @@
 				6A18E66F2EE6748400AA3B15 /* EpicGamesGameImportView.swift */,
 				6A18E6702EE6748400AA3B15 /* GameImportView.swift */,
 				6A18E6712EE6748400AA3B15 /* LocalGameImportView.swift */,
+				CA2200000000000000000043 /* SteamGameImportView.swift */,
 			);
 			path = GameImportView;
 			sourceTree = "<group>";
@@ -758,6 +766,7 @@
 				CA2200000000000000000013 /* ReportedGPUMemoryTests.swift */,
 				CA2200000000000000000017 /* RuntimeIsolationTests.swift */,
 				CA2200000000000000000037 /* GameStoragePreflightTests.swift */,
+				CA2200000000000000000045 /* SteamProviderTests.swift */,
 			);
 			path = KrakenTests;
 			sourceTree = "<group>";
@@ -959,6 +968,8 @@
 				CA2200000000000000000002 /* RuntimeResolver.swift in Sources */,
 				CA2200000000000000000004 /* PersistedValue.swift in Sources */,
 				CA2200000000000000000036 /* GameStoragePreflight.swift in Sources */,
+				CA2200000000000000000042 /* SteamGameManager.swift in Sources */,
+				CA2200000000000000000044 /* SteamGameImportView.swift in Sources */,
 				6A2935592BFCFAFD0035CE4B /* ContainerCreationView.swift in Sources */,
 				6A1192852EC8D4FD005A3E05 /* GameManager.swift in Sources */,
 				6A2960FE2CE1017900917E90 /* NSApplication+Extensions.swift in Sources */,
@@ -1086,6 +1097,7 @@
 				CA2200000000000000000032 /* ContainerRuntimeBindingTests.swift in Sources */,
 				CA2200000000000000000034 /* LaunchDiagnosticsTests.swift in Sources */,
 				CA2200000000000000000038 /* GameStoragePreflightTests.swift in Sources */,
+				CA2200000000000000000046 /* SteamProviderTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
