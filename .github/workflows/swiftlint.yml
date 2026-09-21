@@ -5,13 +5,11 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    paths: &workflow_paths
+  pull_request:
+    paths:
       - '.github/workflows/swiftlint.yml'
       - '.swiftlint.yml'
       - '**/*.swift'
-  pull_request:
-    paths: *workflow_paths
   workflow_dispatch:
 
 jobs:
@@ -20,11 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: SwiftLint JSON diagnostics
-        uses: norio-nomura/action-swiftlint@3.2.1
-        continue-on-error: true
-        with:
-          args: --reporter json
-
       - name: GitHub Action for SwiftLint
         uses: norio-nomura/action-swiftlint@3.2.1
+        env:
+          DIFF_BASE: ${{ github.base_ref }}
