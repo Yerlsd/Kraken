@@ -98,7 +98,8 @@ public enum GameStoragePreflight: Sendable {
             includingPropertiesForKeys: nil,
             options: [.skipsPackageDescendants]
         ) {
-            for case let fileURL as URL in enumerator {
+            for case let item in enumerator {
+                guard let fileURL = item as? URL else { continue }
                 totalCount += 1
                 if totalCount > maxFilesToScan {
                     break
@@ -164,7 +165,8 @@ public enum GameStoragePreflight: Sendable {
         }
 
         var triggered = 0
-        for case let fileURL as URL in enumerator {
+        for case let item in enumerator {
+                guard let fileURL = item as? URL else { continue }
             var st = stat()
             if lstat(fileURL.path(percentEncoded: false), &st) == 0 {
                 if (st.st_flags & ufDatalessFlag) != 0 {
