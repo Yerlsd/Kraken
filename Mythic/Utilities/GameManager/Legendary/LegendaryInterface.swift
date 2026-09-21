@@ -590,9 +590,11 @@ final class Legendary {
             let processStandardErrorPipe: Pipe = .init()
             process.standardError = processStandardErrorPipe
             
+            let launchSessionForHandlers = launchSession
+
             try await withTaskCancellationHandler {
                 try process.run()
-                if let session = launchSession {
+                if let session = launchSessionForHandlers {
                     session.recordProcessCreated(pid: process.processIdentifier, processName: "legendary")
                     ProcessMonitor.shared.register(session: session)
                 }
@@ -605,7 +607,7 @@ final class Legendary {
                 
                 try handleCLIErrorOutput(fromStandardErrorPipe: processStandardErrorPipe)
 
-                if let session = launchSession {
+                if let session = launchSessionForHandlers {
                     session.recordTermination(exitCode: process.terminationStatus)
                     ProcessMonitor.shared.unregister(sessionId: session.id)
                 }
@@ -613,9 +615,9 @@ final class Legendary {
                 // FIXME: legendary will spawn wine completely detached from the cli itself
                 // FIXME: because of this, terminating the process used to launch it will NOT
                 // FIXME: terminate the wine subprocess.. this is a KNOWN ISSUE
-                launchSession?.transitionToTerminating()
+                launchSessionForHandlers?.transitionToTerminating()
                 process.terminate()
-                if let session = launchSession {
+                if let session = launchSessionForHandlers {
                     session.recordTermination(exitCode: 15, reason: .userCancelled)
                     ProcessMonitor.shared.unregister(sessionId: session.id)
                 }

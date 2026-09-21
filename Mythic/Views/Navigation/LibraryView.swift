@@ -1,124 +1,96 @@
 //
 //  LibraryView.swift
-//  Mythic
+//  Kraken
 //
-//  Created by vapidinfinity (esi) on 12/9/2023.
-//
-
-// Copyright © 2023-2025 vapidinfinity
 
 import SwiftUI
-import SwiftyJSON
 import SwordRPC
 
-/// A view displaying the user's library of games.
 struct LibraryView: View {
     @Bindable var gameDataStore: GameDataStore = .shared
-    @ObservedObject private var variables: VariableManager = .shared
-
-    @State private var isGameImportSheetPresented = false
     @Bindable var gameListViewModel: GameListViewModel = .shared
     @CodableAppStorage("gameListLayout") var gameListLayout: GameListViewModel.Layout = .grid
+
+    @State private var isGameImportSheetPresented = false
 
     var body: some View {
         GameListView()
             .navigationTitle("Library")
-        
             .toolbar {
-                ToolbarItem(placement: .status) {
-                    if gameListViewModel.isUpdatingLibrary {
-                        ProgressView()
-                            .controlSize(.small)
-                            .help("Kraken is updating your library.")
-                            .padding(10)
-                    }
-                }
-                
-                ToolbarItem(placement: .automatic) {
+                ToolbarItem(placement: .primaryAction) {
                     Button {
                         isGameImportSheetPresented = true
                     } label: {
-                        Label("Import Game", systemImage: "plus.app")
+                        Label("Add Game", systemImage: "plus")
                     }
-                    .help("Import a game")
+                    .buttonStyle(.borderedProminent)
                 }
-                
-                ToolbarItem(placement: .automatic) {
-                    Button("Force-refresh", systemImage: "arrow.clockwise") {
-                        Task(priority: .userInitiated, operation: { try? await gameDataStore.refreshFromStorefronts() })
-                    }
-                    .help("Force a re-evaluation of your library contents.")
-                }
-                
-                // MARK: GameListView filter views
+
                 if !gameListViewModel.sortedLibrary.isEmpty {
                     ToolbarItem(placement: .automatic) {
-                        Picker("Layout", systemImage: "macwindow", selection: $gameListLayout) {
-                            Label("List", systemImage: "rectangle.grid.1x3")
-                                .tag(GameListViewModel.Layout.list)
-                            
-                            Label("Grid", systemImage: "square.grid.3x3")
-                                .tag(GameListViewModel.Layout.grid)
+                        Picker("Layout", selection: $gameListLayout) {
+                            Label("Grid", systemImage: "square.grid.3x3").tag(GameListViewModel.Layout.grid)
+                            Label("List", systemImage: "list.bullet").tag(GameListViewModel.Layout.list)
                         }
-                        .animation(.easeInOut, value: $gameListLayout.wrappedValue)
+                        .pickerStyle(.segmented)
+                        .frame(width: 150)
                     }
-                    
+
                     ToolbarItem(placement: .automatic) {
-                        Menu("Filters", systemImage: "line.3.horizontal.decrease") {
+                        Menu {
                             Section("Platform") {
                                 ForEach(Game.Platform.allCases, id: \.self) { platform in
-                                    Toggle(platform.description,
-                                           isOn: searchTokenBinding(for: .platform(platform)))
+                                    Toggle(
+                                        platform.description,
+                                        isOn: searchTokenBinding(for: .platform(platform))
+                                    )
                                 }
                             }
-                            
-                            Section("Storefront") {
+
+                            Section("Source") {
                                 ForEach(Game.Storefront.allCases, id: \.self) { storefront in
-                                    Toggle(storefront.description,
-                                           isOn: searchTokenBinding(for: .storefront(storefront)))
+                                    Toggle(
+                                        storefront.description,
+                                        isOn: searchTokenBinding(for: .storefront(storefront))
+                                    )
                                 }
                             }
-                            
-                            Section("Installation") {
-                                Toggle("Installed",
-                                       isOn: searchTokenBinding(for: .installed))
-                                Toggle("Not Installed",
-                                       isOn: searchTokenBinding(for: .notInstalled))
+
+                            Section("Status") {
+                                Toggle("Installed", isOn: searchTokenBinding(for: .installed))
+                                Toggle("Not Installed", isOn: searchTokenBinding(for: .notInstalled))
+                                Toggle("Favourites", isOn: searchTokenBinding(for: .favourited))
                             }
-                            
-                            Section {
-                                Toggle("Favourited", isOn: searchTokenBinding(for: .favourited))
-                            }
+                        } label: {
+                            Label("Filter", systemImage: "line.3.horizontal.decrease")
                         }
-                        .menuIndicator(.hidden)
                     }
                 }
             }
-        
-            .task(priority: .background) {
-                discordRPC.setPresence({
-                    var presence: RichPresence = .init()
-                    presence.details = "Looking through their game library"
-                    presence.state = "Viewing Library"
-                    presence.timestamps.start = .now
-                    presence.assets.largeImage = "macos_512x512_2x"
-                    
-                    return presence
-                }())
-            }
-        
             .sheet(isPresented: $isGameImportSheetPresented) {
                 GameImportView(isPresented: $isGameImportSheetPresented)
                     .fixedSize()
             }
+            .task(priority: .background) {
+                discordRPC.setPresence({
+                    var presence = RichPresence()
+                    presence.details = "Looking through the game library"
+                    presence.state = "Viewing Library"
+                    presence.timestamps.start = .now
+                    presence.assets.largeImage = "macos_512x512_2x"
+                    return presence
+                }())
+            }
     }
-    
+
     private func searchTokenBinding(for token: GameListViewModel.SearchToken) -> Binding<Bool> {
-        .init(
+        Binding(
             get: { gameListViewModel.searchTokens.contains(token) },
             set: { isOn in
                 if isOn {
-                    gameListViewModel.searchTokens.append(token)
+                    if !gameListViewModel.searchTokens.contains(token) {
+                        gameListViewModel.searchTokens.append(token)
+                    }
                 } else {
                     gameListViewModel.searchTokens.removeAll { $0 == token }
                 }

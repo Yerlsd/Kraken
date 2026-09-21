@@ -113,9 +113,9 @@ final class GameStoragePreflightTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: tempDir) }
 
         // Create 5 small dummy files
-        for i in 0..<5 {
-            let fileURL = tempDir.appendingPathComponent("asset_\(i).dat")
-            try Data("test_content_\(i)".utf8).write(to: fileURL)
+        for fileIndex in 0..<5 {
+            let fileURL = tempDir.appendingPathComponent("asset_\(fileIndex).dat")
+            try Data("test_content_\(fileIndex)".utf8).write(to: fileURL)
         }
 
         let result = GameStoragePreflight.inspect(at: tempDir)
