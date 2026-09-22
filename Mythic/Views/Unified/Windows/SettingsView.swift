@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
-import SemanticVersion
 
 /// Native macOS settings workspace for Kraken.
+/// Only controls backed by real Kraken state are exposed here; game-specific
+/// runtime and launch configuration stays in the game's own settings window.
 struct SettingsView: View {
     private enum Section: String, CaseIterable, Identifiable {
         case general = "General"
         case library = "Library"
-        case launching = "Launching"
         case downloads = "Downloads"
         case updates = "Updates"
         case services = "Services"
@@ -19,7 +19,6 @@ struct SettingsView: View {
             switch self {
             case .general: "gearshape"
             case .library: "square.grid.2x2"
-            case .launching: "play.circle"
             case .downloads: "arrow.down.circle"
             case .updates: "arrow.triangle.2.circlepath"
             case .services: "link"
@@ -38,31 +37,27 @@ struct SettingsView: View {
             }
             .listStyle(.sidebar)
             .navigationTitle("Settings")
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200, max: 230)
+            .navigationSplitViewColumnWidth(min: 180, ideal: 205, max: 240)
         } detail: {
-            Form {
-                switch selection {
-                case .general:
-                    GeneralSettings()
-                case .library:
-                    LibrarySettings()
-                case .launching:
-                    LaunchSettings()
-                case .downloads:
-                    DownloadSettings()
-                case .updates:
-                    UpdateSettings()
-                case .services:
-                    ServiceSettings()
-                case .engine:
-                    EngineSettings()
+            ScrollView {
+                Form {
+                    switch selection {
+                    case .general: GeneralSettings()
+                    case .library: LibrarySettings()
+                    case .downloads: DownloadSettings()
+                    case .updates: UpdateSettings()
+                    case .services: ServiceSettings()
+                    case .engine: EngineSettings()
+                    }
                 }
+                .formStyle(.grouped)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
             }
-            .formStyle(.grouped)
-            .frame(minWidth: 520)
+            .background(Color(nsColor: .windowBackgroundColor))
             .navigationTitle(selection.rawValue)
         }
-        .frame(minWidth: 760, minHeight: 500)
+        .frame(minWidth: 760, minHeight: 520)
         .task(priority: .background) {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
@@ -81,12 +76,19 @@ private struct GeneralSettings: View {
     @State private var resetSettingsAlert = false
 
     var body: some View {
-        Section("Kraken") {
-            LabeledContent("About this app") {
+        Section {
+            LabeledContent("Application") {
+                Text("Kraken")
+            }
+            LabeledContent("Purpose") {
                 Text("Windows gaming on macOS")
                     .foregroundStyle(.secondary)
             }
+        } header: {
+            Text("Kraken")
+        }
 
+        Section {
             Button("Reset settings to default", systemImage: "arrow.counterclockwise") {
                 resetSettingsAlert = true
             }
@@ -121,60 +123,32 @@ private struct GeneralSettings: View {
             } message: {
                 Text("This erases Kraken's persistent settings and containers.")
             }
+        } header: {
+            Text("Reset")
         }
     }
 }
 
 private struct LibrarySettings: View {
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 220
-    @AppStorage("gameImageCardBlur") private var imageCardBlur: Double = 0
     @CodableAppStorage("gameListLayout") private var gameListLayout: GameListViewModel.Layout = .grid
+    @AppStorage("libraryArtworkGlow") private var artworkGlow = true
 
     var body: some View {
-        Section("Library appearance") {
-            Slider(value: $gameCardSize, in: 180...360, step: 10) {
-                Label("Game card size", systemImage: "rectangle.resize")
-            } minimumValueLabel: {
-                Text("Small").font(.caption)
-            } maximumValueLabel: {
-                Text("Large").font(.caption)
-            }
-
-            Slider(value: $imageCardBlur, in: 0...20, step: 5) {
-                Label("Artwork glow", systemImage: "sparkles")
-            } minimumValueLabel: {
-                Text("Off").font(.caption)
-            } maximumValueLabel: {
-                Text("Strong").font(.caption)
-            }
-
+        Section {
             Picker("Default library layout", selection: $gameListLayout) {
                 Text("Grid").tag(GameListViewModel.Layout.grid)
                 Text("List").tag(GameListViewModel.Layout.list)
             }
+
+            Toggle("Artwork depth and hover glow", isOn: $artworkGlow)
+        } header: {
+            Text("Library appearance")
         }
 
         Section {
-            Text("The library automatically adapts the number of columns to the window width. Nothing is pinned to a fixed number of cards per row.")
+            Text("The library automatically adapts its columns to the available window width. Game-specific artwork and launch settings can be changed from each game's menu.")
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
-
-private struct LaunchSettings: View {
-    @AppStorage("minimiseOnGameLaunch") private var minimiseOnLaunch = false
-    @AppStorage("quitOnAppClose") private var quitOnClose = false
-
-    var body: some View {
-        Section("When launching a game") {
-            Toggle("Minimise Kraken to the Dock", systemImage: "dock.arrow.down.rectangle", isOn: $minimiseOnLaunch)
-            Toggle("Quit games when Kraken closes", systemImage: "xmark.app", isOn: $quitOnClose)
-        }
-
-        Section {
-            Text("Game-specific runtime, container, graphics and launch arguments live in the game's own Settings window.")
-                .foregroundStyle(.secondary)
         }
     }
 }
@@ -184,13 +158,12 @@ private struct DownloadSettings: View {
     @State private var importerPresented = false
 
     var body: some View {
-        Section("Game installation") {
+        Section {
             LabeledContent("Default install location") {
                 VStack(alignment: .trailing, spacing: 5) {
                     Text(installBaseURL.prettyPath)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-
                     if !FileLocations.isWritableFolder(url: installBaseURL) {
                         Label("Folder is not writable", systemImage: "exclamationmark.triangle.fill")
                             .font(.caption)
@@ -201,56 +174,41 @@ private struct DownloadSettings: View {
 
             HStack {
                 Spacer()
-                Button("Choose Folder…") {
-                    importerPresented = true
-                }
-                .buttonStyle(.borderedProminent)
-
-                Button("Reset") {
-                    installBaseURL = Bundle.appGames!
-                }
+                Button("Choose Folder…") { importerPresented = true }
+                    .buttonStyle(.borderedProminent)
+                Button("Reset") { installBaseURL = Bundle.appGames! }
             }
             .fileImporter(isPresented: $importerPresented, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result {
                     installBaseURL = url
                 }
             }
+        } header: {
+            Text("Game installation")
         }
     }
 }
 
 private struct UpdateSettings: View {
-    @AppStorage("engineChannel") private var engineChannel: String = Engine.ReleaseChannel.stable.rawValue
-    @AppStorage("engineAutomaticallyChecksForUpdates") private var automaticEngineUpdates = true
-    @State private var changeAlert = false
-
     var body: some View {
-        Section("Kraken") {
+        Section {
             Button("Check for Kraken Updates…", systemImage: "arrow.down.app") {
                 SparkleUpdateController.shared.checkForUpdates(userInitiated: true)
             }
-        }
 
-        Section("Compatibility Engine") {
-            Picker("Release channel", selection: $engineChannel) {
-                Text("Stable").tag(Engine.ReleaseChannel.stable.rawValue)
-                Text("Preview").tag(Engine.ReleaseChannel.preview.rawValue)
-            }
-            .onChange(of: engineChannel) {
-                changeAlert = true
-            }
-
-            Toggle("Automatically check for engine updates", systemImage: "arrow.down.app.dashed", isOn: $automaticEngineUpdates)
-        }
-        .alert("Reinstall engine?", isPresented: $changeAlert) {
-            Button("Reinstall", role: .destructive) {
-                Task { @MainActor in
-                    try? await Engine.remove()
+            Button("Check for Compatibility Engine Updates…", systemImage: "arrow.down.app.dashed") {
+                Task(priority: .userInitiated) {
+                    await Engine.displayUpdateChecker(userInitiated: true)
                 }
             }
-            Button("Cancel", role: .cancel) { }
-        } message: {
-            Text("Changing the release channel requires the current engine installation to be removed first.")
+        } header: {
+            Text("Updates")
+        }
+
+        Section {
+            Text("Kraken keeps application updates separate from the compatibility engine so game support can evolve independently.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -259,7 +217,7 @@ private struct ServiceSettings: View {
     @AppStorage("discordRPC") private var discordRPCEnabled = true
 
     var body: some View {
-        Section("Discord") {
+        Section {
             Toggle("Show Kraken activity on Discord", systemImage: "bubble.left.and.bubble.right", isOn: $discordRPCEnabled)
                 .disabled(!discordRPC.isDiscordInstalled)
                 .onChange(of: discordRPCEnabled) { _, enabled in
@@ -269,30 +227,35 @@ private struct ServiceSettings: View {
                         discordRPC.disconnect()
                     }
                 }
+        } header: {
+            Text("Discord")
         }
 
-        Section("Epic Games") {
-            Text("Epic account authentication and cloud-save operations are managed from the Accounts page.")
+        Section {
+            Text("Epic account authentication and Steam discovery are managed from Accounts. Kraken does not store a Steam web password.")
                 .foregroundStyle(.secondary)
-        }
-
-        Section("Steam") {
-            Text("Steam games are discovered from the local Steam installation. A separate Steam web login is not currently required.")
-                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        } header: {
+            Text("Store services")
         }
     }
 }
 
 private struct EngineSettings: View {
     @State private var forceQuitRunning = false
-    @State private var removeEngine = false
     @State private var purgeShaders = false
     @State private var removeAlert = false
-    @State private var engineVersion: SemanticVersion?
+    @State private var removeEngine = false
+    @State private var engineVersion: String?
 
     var body: some View {
         if Engine.isInstalled {
-            Section("Compatibility engine") {
+            Section {
+                LabeledContent("Installed version") {
+                    Text(engineVersion ?? "Checking…")
+                        .foregroundStyle(.secondary)
+                }
+
                 Button("Force Quit Windows Applications", systemImage: "xmark.app") {
                     forceQuitRunning = true
                     do {
@@ -302,6 +265,17 @@ private struct EngineSettings: View {
                     }
                 }
                 .disabled(forceQuitRunning)
+            } header: {
+                Text("Compatibility engine")
+            }
+
+            Section {
+                Button("Purge D3DMetal Shader Cache", systemImage: "square.stack.3d.up.slash") {
+                    purgeShaders = true
+                    _ = try? Wine.purgeD3DMetalShaderCache()
+                    purgeShaders = false
+                }
+                .disabled(purgeShaders)
 
                 Button("Remove Compatibility Engine", systemImage: "trash") {
                     removeAlert = true
@@ -319,23 +293,12 @@ private struct EngineSettings: View {
                 } message: {
                     Text("Windows games will not launch until a compatibility engine is installed again.")
                 }
-            }
-
-            Section("Advanced") {
-                Button("Purge D3DMetal Shader Cache", systemImage: "square.stack.3d.up.slash") {
-                    purgeShaders = true
-                    _ = try? Wine.purgeD3DMetalShaderCache()
-                    purgeShaders = false
-                }
-                .disabled(purgeShaders)
-
-                LabeledContent("Installed version") {
-                    Text(engineVersion?.prettyString ?? "Checking…")
-                        .foregroundStyle(.secondary)
-                }
+            } header: {
+                Text("Advanced")
             }
             .task {
-                engineVersion = await Engine.installedVersion
+                let version = await Engine.installedVersion
+                engineVersion = version?.prettyString
             }
         } else {
             Engine.NotInstalledView()
