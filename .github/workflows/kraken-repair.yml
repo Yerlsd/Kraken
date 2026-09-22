@@ -1,10 +1,10 @@
+# Temporary self-removing repair workflow for the Swift 6 CI regression.
 name: Kraken Repair
 
 on:
-  pull_request:
-    types: [synchronize]
+  push:
     branches:
-      - engine3/wine11
+      - ui/kraken-native-overhaul
 
 permissions:
   contents: write
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   repair:
-    if: github.event.pull_request.head.ref == 'ui/kraken-native-overhaul' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.ref == 'refs/heads/ui/kraken-native-overhaul'
     runs-on: macos-26
     steps:
       - name: Check out branch
