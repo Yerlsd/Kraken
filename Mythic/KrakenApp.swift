@@ -1,12 +1,3 @@
-//
-//  KrakenApp.swift
-//  Kraken
-//
-//  Created by vapidinfinity (esi) on 9/9/2023.
-//
-
-// Copyright © 2023-2025 vapidinfinity
-
 import SwiftUI
 import Sparkle
 import WhatsNewKit
@@ -16,9 +7,7 @@ struct KrakenApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
     @AppStorage("isOnboardingPresented") var isOnboardingPresented: Bool = true
-
     @StateObject private var networkMonitor: NetworkMonitor = .shared
-
     @Environment(\.openWindow) private var openWindow
 
     var body: some Scene {
@@ -43,22 +32,21 @@ struct KrakenApp: App {
                 }
             }
             .modifier(SparkleUpdater())
-            .frame(minWidth: 850, minHeight: 400)
+            .frame(minWidth: 980, minHeight: 620)
         }
         .handlesExternalEvents(matching: ["open"])
         .environment(
             \.whatsNew,
-             WhatsNewEnvironment(
-                versionStore:
-                    {
+            WhatsNewEnvironment(
+                versionStore: {
 #if DEBUG
-                        InMemoryWhatsNewVersionStore()
+                    InMemoryWhatsNewVersionStore()
 #else
-                        UserDefaultsWhatsNewVersionStore()
+                    UserDefaultsWhatsNewVersionStore()
 #endif
-                    }(),
+                }(),
                 whatsNewCollection: self
-             )
+            )
         )
         .commands {
             CommandGroup(replacing: .appInfo) {
@@ -70,33 +58,34 @@ struct KrakenApp: App {
             }
 
             CommandGroup(after: .appInfo) {
-                Button("Check for Kraken Updates...", action: { SparkleUpdateController.shared.checkForUpdates(userInitiated: true) })
-                
-                Button("Check for Mythic Engine Updates...") {
+                Button("Check for Kraken Updates…") {
+                    SparkleUpdateController.shared.checkForUpdates(userInitiated: true)
+                }
+
+                Button("Check for Kraken Engine Updates…") {
                     Task(priority: .userInitiated) {
                         await Engine.displayUpdateChecker(userInitiated: true)
                     }
                 }
 
-                Button("Restart Onboarding...") {
+                Button("Restart Onboarding…") {
                     withAnimation {
                         isOnboardingPresented = true
                     }
                 }
                 .disabled(isOnboardingPresented)
             }
-            
+
             CommandGroup(replacing: .help) {
                 Link("Documentation", destination: URL(string: "https://docs.getmythic.app/")!)
                 Link("Discord server", destination: URL(string: "https://discord.gg/kQKdvjTVqh")!)
-                Link("Games compability",
-                     destination: URL(string: "https://docs.google.com/spreadsheets/d/1W_1UexC1VOcbP2CHhoZBR5-8koH-ZPxJBDWntwH-tsc/")!)
+                Link("Compatibility database", destination: URL(string: "https://docs.google.com/spreadsheets/d/1W_1UexC1VOcbP2CHhoZBR5-8koH-ZPxJBDWntwH-tsc/")!)
 
                 Section("Support the project") {
                     Link("GitHub Sponsors", destination: URL(string: "https://github.com/sponsors/MythicApp")!)
                     Link("Ko-Fi", destination: URL(string: "https://ko-fi.com/vapidinfinity")!)
                 }
-                
+
                 Section("More") {
                     Link("GitHub repository", destination: URL(string: "https://github.com/Yerlsd/Kraken")!)
                     Link("Website", destination: URL(string: "https://getmythic.app/")!)
@@ -106,14 +95,14 @@ struct KrakenApp: App {
 
         Window("About Kraken", id: "about") {
             AboutView()
-                .frame(width: 285, height: 400)
+                .frame(width: 320, height: 430)
                 .onAppear {
                     if let window = NSApp.window(withID: "about") {
                         window.isImmersive = true
                     }
                 }
         }
-        
+
         Settings {
             SettingsView()
         }
