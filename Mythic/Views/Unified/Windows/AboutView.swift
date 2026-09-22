@@ -1,195 +1,121 @@
-//
-//  AboutView.swift
-//  Mythic
-//
-//  Created by vapidinfinity (esi) on 25/4/2025.
-//
-
-// Copyright © 2023-2025 vapidinfinity
-
-import Foundation
 import SwiftUI
 import SemanticVersion
-import ColorfulX
 
 struct AboutView: View {
-    @State private var colorfulAnimationColors: [Color] = [
-        .init(hex: "#5412F6"),
-        .init(hex: "#7E1ED8"),
-        .init(hex: "#2C2C2C")
-    ]
-    @State private var colorfulAnimationSpeed: Double = 1
-    @State private var colorfulAnimationNoise: Double = 0
-    
-    @State private var showGradientView: Bool = false
-    @State private var animateTextView: Bool = false
-    @State private var isChevronHovered: Bool = false
-
     @State private var engineVersion: SemanticVersion?
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(showsIndicators: false) {
-                VStack {
-                    VStack(alignment: .center) {
-                        BundleIconView()
-                            .frame(width: 100, height: 100)
-                        
-                        if !animateTextView {
-                            Group {
-                                Text("Kraken")
-                                    .font(.largeTitle)
-                                Text("© by vapidinfinity ✦")
-                                
-                                Divider()
-                                    .frame(width: 100)
-                                
-                                VStack {
-                                    if let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
-                                       let bundleVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String,
-                                       let mythicVersion: SemanticVersion = .init("\(shortVersion)+\(bundleVersion)") {
-                                        Text(mythicVersion.prettyString)
-                                    }
-                                    
-                                    if let engineVersion {
-                                        Text("Engine \(engineVersion.prettyString)")
-                                    }
-                                }
-                                .task { @MainActor in
-                                    engineVersion = await Engine.installedVersion
-                                }
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                            }
-                            .blur(radius: showGradientView ? 30 : 0)
-                        }
-                    }
-                    .id(1)
-                    .frame(height: 400)
-                    .overlay(alignment: .bottom) {
-                        Button {
-                            withAnimation(.easeInOut) {
-                                proxy.scrollTo(2)
-                            }
-                            
-                        } label: {
-                            VStack {
-                                if isChevronHovered {
-                                    Text("scroll... or just jump down!")
-                                        .frame(width: 500)
-                                }
-                                
-                                Image(systemName: "chevron.down")
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .symbolEffect(.pulse)
-                        .onHover { hovered in
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                isChevronHovered = hovered
-                            }
-                        }
-                        .padding()
-                    }
-                    
-                    Divider()
-                        .padding(.horizontal)
-                    
-                    Text(#""An open-source macOS game launcher with the ability to play Windows games through a custom implementation of Apple's Game Porting Toolkit — supporting multiple platforms.""#)
-                        .font(.headline)
-                        .multilineTextAlignment(.center)
-                        .padding()
-                    
-                    Divider()
-                        .padding(.horizontal)
-                    
-                    VStack(alignment: .center, spacing: 10) {
-                        Text("Acknowledgements")
-                            .font(.title)
-                        
-                        AcknowledgementCard(
-                            URL: .init(string: "https://codeweavers.com/")!,
-                            image: Image("CrossOver"),
-                            title: "⭐ CodeWeavers, and Gcenx",
-                            description: "Developing, maintaining, and porting Wine, the technology behind Kraken's underlying Windows® → macOS API translation layer."
-                        )
-                        
-                        AcknowledgementCard(
-                            URL: .init(string: "https://getwhisky.app/")!,
-                            image: Image("Whisky"),
-                            title: "🕊️ Whisky",
-                            description: "Providing Mythic Engine's foundation."
-                        )
-                        
-                        AcknowledgementCard(
-                            URL: .init(string: "https://github.com/Yerlsd/Kraken#dependencies")!,
-                            image: Image("BlankAppIcon"),
-                            title: "⭐ Others",
-                            description: "View Kraken's other dependencies."
-                        )
-                    }
-                    .id(2)
-                    .padding()
-                    .frame(height: 400)
-                }
-            }
-            .background(showGradientView ? nil : WindowBlurView().ignoresSafeArea())
-            .background(showGradientView ? ColorfulView(color: $colorfulAnimationColors, speed: $colorfulAnimationSpeed, noise: $colorfulAnimationNoise).ignoresSafeArea() : nil)
-            .frame(width: 285, height: 400)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 1)) {
-                    showGradientView = hovering
-                }
-                
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                    withAnimation(.easeInOut(duration: 0.7)) {
-                        animateTextView = hovering
+        VStack(spacing: 0) {
+            VStack(spacing: 12) {
+                BundleIconView()
+                    .frame(width: 92, height: 92)
+                    .clipShape(.rect(cornerRadius: 22))
+                    .shadow(radius: 10, y: 5)
+
+                Text("Kraken")
+                    .font(.largeTitle.bold())
+
+                Text("A native macOS launcher for Windows games")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+
+                HStack(spacing: 8) {
+                    versionPill(
+                        title: "Kraken",
+                        value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+                    )
+                    if let engineVersion {
+                        versionPill(title: "Engine", value: engineVersion.prettyString)
                     }
                 }
             }
-            .fixedSize()
+            .padding(.top, 28)
+            .padding(.horizontal, 24)
+
+            Divider()
+                .padding(.vertical, 22)
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("About Kraken")
+                    .font(.headline)
+                Text("Kraken brings Windows game launching, Wine containers and compatibility tooling together in one focused Mac application.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                acknowledgement(
+                    title: "CodeWeavers & Wine",
+                    detail: "The Wine technology that provides the Windows compatibility layer.",
+                    url: "https://www.codeweavers.com/"
+                )
+
+                acknowledgement(
+                    title: "Whisky",
+                    detail: "An important foundation for the compatibility tooling Kraken builds on.",
+                    url: "https://getwhisky.app/"
+                )
+
+                acknowledgement(
+                    title: "Kraken source",
+                    detail: "View the project, report issues and follow development.",
+                    url: "https://github.com/Yerlsd/Kraken"
+                )
+            }
+            .padding(.horizontal, 24)
+
+            Spacer(minLength: 20)
+
+            Text("© Kraken contributors")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 18)
+        }
+        .frame(width: 390, height: 560)
+        .background(.regularMaterial)
+        .task {
+            engineVersion = await Engine.installedVersion
         }
     }
-}
 
-extension AboutView {
-    struct AcknowledgementCard: View {
-        var URL: URL
-        var image: Image
-        var title: String
-        var description: String
-        
-        @State private var isChevronHovering: Bool = false
-        
-        var body: some View {
-            Button {
-                NSWorkspace.shared.open(URL)
-            } label: {
-                HStack(alignment: .center) {
-                    image
-                        .resizable()
-                        .frame(width: 48, height: 48)
-                        .aspectRatio(contentMode: .fit)
-                    
-                    VStack(alignment: .leading) {
-                        Text(title)
-                            .font(.headline)
-                        
-                        Text(description)
-                            .tint(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.right")
-                        .onHover {
-                            isChevronHovering = $0
-                        }
-                }
-            }
-            .buttonStyle(.plain)
-            .padding(.bottom)
+    private func versionPill(title: String, value: String) -> some View {
+        VStack(spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.quaternary, in: .capsule)
+    }
+
+    private func acknowledgement(title: String, detail: String, url: String) -> some View {
+        Button {
+            if let destination = URL(string: url) {
+                NSWorkspace.shared.open(destination)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "arrow.up.right.square")
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
