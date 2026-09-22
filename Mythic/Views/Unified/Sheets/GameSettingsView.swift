@@ -12,7 +12,7 @@ struct GameSettingsView: View {
 
     @Bindable private var operationManager: GameOperationManager = .shared
 
-    private enum Section: String, CaseIterable, Identifiable {
+    private enum Section: String, CaseIterable, Identifiable, Hashable {
         case overview = "Overview"
         case launch = "Launch"
         case files = "Files"
@@ -114,13 +114,11 @@ struct GameSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 hero
-
                 HStack(spacing: 12) {
                     statusCard(title: "Storefront", value: game.storefront?.description ?? "Local", icon: "bag")
                     statusCard(title: "Runtime", value: game.launchProfile.effectiveRuntimeID.rawValue, icon: "shippingbox")
                     statusCard(title: "Mode", value: isCompatibilityOverrideEnabled ? "Manual" : "Automatic", icon: isCompatibilityOverrideEnabled ? "slider.horizontal.3" : "wand.and.stars")
                 }
-
                 sectionCard(title: "Quick actions", icon: "bolt.fill") {
                     HStack(spacing: 10) {
                         GameCard.Buttons.VerificationButton(game: $game, withLabel: true)
@@ -135,7 +133,6 @@ struct GameSettingsView: View {
                     }
                     .buttonStyle(.bordered)
                 }
-
                 if case .installed(_, let platform) = game.installationState,
                    case .windows = platform {
                     compatibilitySummary
@@ -151,14 +148,12 @@ struct GameSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageIntro(title: "Launch", subtitle: "Control the arguments and launch-time checks Kraken applies to this game.")
-
                 sectionCard(title: "Launch options", icon: "terminal") {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Special instructions passed to the game when it starts. Most people should leave these alone unless a game or compatibility guide tells you to add one.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
-
                         if !game.launchArguments.isEmpty {
                             ScrollView(.horizontal) {
                                 HStack(spacing: 8) {
@@ -169,7 +164,6 @@ struct GameSettingsView: View {
                             }
                             .scrollIndicators(.never)
                         }
-
                         HStack {
                             TextField("Add launch option", text: $typingArgument)
                                 .onSubmit(submitLaunchArgument)
@@ -178,7 +172,6 @@ struct GameSettingsView: View {
                         }
                     }
                 }
-
                 sectionCard(title: "Game files", icon: "checkmark.shield") {
                     HStack(spacing: 14) {
                         VStack(alignment: .leading, spacing: 4) {
@@ -202,14 +195,12 @@ struct GameSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageIntro(title: "Files", subtitle: "Manage where the game is stored and check whether macOS has offloaded any assets.")
-
                 if case .installed(let location, _) = game.installationState {
                     sectionCard(title: "Installation", icon: "folder") {
                         VStack(alignment: .leading, spacing: 14) {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Location")
-                                        .font(.headline)
+                                    Text("Location").font(.headline)
                                     Text(location.prettyPath)
                                         .font(.callout)
                                         .foregroundStyle(.secondary)
@@ -220,9 +211,7 @@ struct GameSettingsView: View {
                                     NSWorkspace.shared.activateFileViewerSelecting([location])
                                 }
                             }
-
                             Divider()
-
                             HStack {
                                 Text("Move \"\(game.title)\"")
                                 Spacer()
@@ -243,7 +232,6 @@ struct GameSettingsView: View {
                             }
                         }
                     }
-
                     if let storagePreflightResult {
                         storageStatusCard(storagePreflightResult, location: location)
                     }
@@ -265,7 +253,6 @@ struct GameSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageIntro(title: "Compatibility", subtitle: "Choose whether Kraken manages the Windows runtime automatically or you want to override it for this game.")
-
                 if case .installed(_, let platform) = game.installationState,
                    case .windows = platform {
                     sectionCard(title: "Runtime", icon: "shippingbox") {
@@ -274,7 +261,6 @@ struct GameSettingsView: View {
                                 .onChange(of: isCompatibilityOverrideEnabled) { _, enabled in
                                     setManualRuntimeOverride(enabled)
                                 }
-
                             Picker("Runtime", selection: $selectedRuntimeID) {
                                 ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
                                     HStack(spacing: 6) {
@@ -298,14 +284,12 @@ struct GameSettingsView: View {
                                 profile.container = compatibleContainerURL(for: newValue).map(ContainerReference.init(url:))
                                 game.launchProfile = profile
                             }
-
                             ContainerSettingsView(
                                 selectedContainerURL: $game.containerURL,
                                 withPicker: true,
                                 selectedRuntimeID: game.launchProfile.effectiveRuntimeID
                             )
                             .disabled(!isCompatibilityOverrideEnabled)
-
                             Text(isCompatibilityOverrideEnabled ? "The selected runtime and compatible container are used for this game." : "Automatic mode lets Kraken choose the validated runtime and container.")
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -329,7 +313,6 @@ struct GameSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 pageIntro(title: "Graphics", subtitle: "Choose the graphics backend and the VRAM amount Windows should be told the game has.")
-
                 sectionCard(title: "Graphics backend", icon: "display") {
                     VStack(alignment: .leading, spacing: 14) {
                         Picker("Graphics", selection: $selectedGraphicsBackend) {
@@ -356,13 +339,11 @@ struct GameSettingsView: View {
                             profile.selectGraphicsBackend(newValue)
                             game.launchProfile = profile
                         }
-
                         Text(selectedGraphicsBackend == .automatic ? "Kraken selects an available graphics backend automatically." : "Kraken will use the selected backend for this game.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
                 }
-
                 sectionCard(title: "Reported GPU memory", icon: "memorychip") {
                     VStack(alignment: .leading, spacing: 10) {
                         Picker("Reported GPU Memory", selection: reportedMemorySelection) {
@@ -374,7 +355,6 @@ struct GameSettingsView: View {
                             Text("8192 MB (8 GB)").tag(8192)
                             Text("16384 MB (16 GB)").tag(16384)
                         }
-
                         Text("This changes the VRAM amount reported to Windows games. It does not reserve physical RAM, but an incorrect value can cause crashes or memory pressure.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -395,16 +375,13 @@ struct GameSettingsView: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 270)
                 .clipped()
-
             LinearGradient(colors: [.clear, .black.opacity(0.82)], startPoint: .center, endPoint: .bottom)
-
             HStack(spacing: 14) {
                 if isImageEmpty && game.isFallbackImageAvailable {
                     GameImageCard.FallbackGameImageCard(game: .constant(game))
                         .frame(width: 64, height: 64)
                         .clipShape(.rect(cornerRadius: 14))
                 }
-
                 VStack(alignment: .leading, spacing: 5) {
                     Text(game.title)
                         .font(.title.bold())
@@ -445,14 +422,9 @@ struct GameSettingsView: View {
 
     private func statusCard(title: String, value: String, icon: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Image(systemName: icon)
-                .foregroundStyle(.tint)
-            Text(title)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(value)
-                .font(.headline)
-                .lineLimit(1)
+            Image(systemName: icon).foregroundStyle(.tint)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.headline).lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)
@@ -462,8 +434,7 @@ struct GameSettingsView: View {
 
     private func pageIntro(title: String, subtitle: String) -> some View {
         VStack(alignment: .leading, spacing: 5) {
-            Text(title)
-                .font(.largeTitle.bold())
+            Text(title).font(.largeTitle.bold())
             Text(subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -473,16 +444,14 @@ struct GameSettingsView: View {
 
     private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Label(title, systemImage: icon)
-                .font(.headline)
+            Label(title, systemImage: icon).font(.headline)
             content()
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.regularMaterial)
         .overlay {
-            RoundedRectangle(cornerRadius: 18)
-                .strokeBorder(.quaternary, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 18).strokeBorder(.quaternary, lineWidth: 1)
         }
         .clipShape(.rect(cornerRadius: 18))
     }
@@ -501,9 +470,7 @@ struct GameSettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 Button("Download Game Assets Now") {
-                    Task.detached {
-                        GameStoragePreflight.materializeDatalessFiles(in: location)
-                    }
+                    Task.detached { GameStoragePreflight.materializeDatalessFiles(in: location) }
                 }
                 .buttonStyle(.borderedProminent)
             }
@@ -585,14 +552,11 @@ struct GameSettingsView: View {
         let cleanedArgument = typingArgument
             .trimmingCharacters(in: .illegalCharacters)
             .trimmingCharacters(in: .whitespacesAndNewlines)
-
         var wordExpansion = wordexp_t() // swiftlint:disable:this identifier_name
         defer { wordfree(&wordExpansion) }
         guard Darwin.wordexp(cleanedArgument, &wordExpansion, 0) == 0 else { return }
-
         let splitArguments: [String] = (0..<Int(wordExpansion.we_wordc))
             .compactMap { String(cString: wordExpansion.we_wordv[$0]!) }
-
         guard !cleanedArgument.isEmpty else { return }
         guard !game.launchArguments.contains(typingArgument) else { return }
         game.launchArguments += splitArguments
@@ -621,9 +585,7 @@ struct GameSettingsView: View {
         guard case .installed(let location, _) = game.installationState else { return }
         Task.detached(priority: .userInitiated) {
             let result = GameStoragePreflight.inspect(at: location, maxFilesToScan: 5_000)
-            await MainActor.run {
-                storagePreflightResult = result
-            }
+            await MainActor.run { storagePreflightResult = result }
         }
     }
 
@@ -662,11 +624,8 @@ struct GameSettingsView: View {
 
         var body: some View {
             HStack(spacing: 5) {
-                Text(argument)
-                    .monospaced()
-                    .lineLimit(1)
-                Image(systemName: "xmark")
-                    .font(.caption2.weight(.bold))
+                Text(argument).monospaced().lineLimit(1)
+                Image(systemName: "xmark").font(.caption2.weight(.bold))
             }
             .foregroundStyle(isHovering ? .red : .secondary)
             .padding(.horizontal, 9)
