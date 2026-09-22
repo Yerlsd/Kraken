@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import SemanticVersion
 
 struct AboutView: View {
@@ -21,10 +22,7 @@ struct AboutView: View {
                     .multilineTextAlignment(.center)
 
                 HStack(spacing: 8) {
-                    versionPill(
-                        title: "Kraken",
-                        value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
-                    )
+                    versionPill(title: "Kraken", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown")
                     if let engineVersion {
                         versionPill(title: "Engine", value: engineVersion.prettyString)
                     }
@@ -44,23 +42,9 @@ struct AboutView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                acknowledgement(
-                    title: "CodeWeavers & Wine",
-                    detail: "The Wine technology that provides the Windows compatibility layer.",
-                    url: "https://www.codeweavers.com/"
-                )
-
-                acknowledgement(
-                    title: "Whisky",
-                    detail: "An important foundation for the compatibility tooling Kraken builds on.",
-                    url: "https://getwhisky.app/"
-                )
-
-                acknowledgement(
-                    title: "Kraken source",
-                    detail: "View the project, report issues and follow development.",
-                    url: "https://github.com/Yerlsd/Kraken"
-                )
+                acknowledgement(title: "CodeWeavers & Wine", detail: "The Wine technology that provides the Windows compatibility layer.", url: "https://www.codeweavers.com/")
+                acknowledgement(title: "Whisky", detail: "An important foundation for the compatibility tooling Kraken builds on.", url: "https://getwhisky.app/")
+                acknowledgement(title: "Kraken source", detail: "View the project, report issues and follow development.", url: "https://github.com/Yerlsd/Kraken")
             }
             .padding(.horizontal, 24)
 
