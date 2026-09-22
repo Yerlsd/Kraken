@@ -3,10 +3,6 @@ import SwiftUI
 import SemanticVersion
 
 /// Native macOS settings workspace for Kraken.
-///
-/// Settings are grouped by task instead of exposing every option at once. The
-/// sidebar remains stable while the detail form changes, which makes the window
-/// easy to scan and keeps advanced engine controls away from everyday settings.
 struct SettingsView: View {
     private enum Section: String, CaseIterable, Identifiable {
         case general = "General"
@@ -86,11 +82,9 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Section("Kraken") {
-            LabeledContent {
+            LabeledContent("About this app") {
                 Text("Windows gaming on macOS")
                     .foregroundStyle(.secondary)
-            } label: {
-                Label("About this app", systemImage: "info.circle")
             }
 
             Button("Reset settings to default", systemImage: "arrow.counterclockwise") {
@@ -125,7 +119,7 @@ private struct GeneralSettings: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("This erases Kraken's persistent settings and containers. Your installed games outside those containers are not deleted.")
+                Text("This erases Kraken's persistent settings and containers.")
             }
         }
     }
@@ -154,11 +148,9 @@ private struct LibrarySettings: View {
                 Text("Strong").font(.caption)
             }
 
-            Picker("Default library layout", systemImage: "square.grid.2x2") {
+            Picker("Default library layout", selection: $gameListLayout) {
                 Text("Grid").tag(GameListViewModel.Layout.grid)
                 Text("List").tag(GameListViewModel.Layout.list)
-            } selection: {
-                $gameListLayout
             }
         }
 
@@ -240,7 +232,7 @@ private struct UpdateSettings: View {
         }
 
         Section("Compatibility Engine") {
-            Picker("Release channel", systemImage: "app.badge.clock", selection: $engineChannel) {
+            Picker("Release channel", selection: $engineChannel) {
                 Text("Stable").tag(Engine.ReleaseChannel.stable.rawValue)
                 Text("Preview").tag(Engine.ReleaseChannel.preview.rawValue)
             }
