@@ -1,0 +1,79 @@
+name: Kraken Repair
+
+on:
+  push:
+    branches:
+      - ui/kraken-native-overhaul
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  repair:
+    if: github.ref == 'refs/heads/ui/kraken-native-overhaul'
+    runs-on: macos-26
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v5
+        with:
+          ref: ui/kraken-native-overhaul
+          fetch-depth: 0
+
+      - name: Fix Swift 6 concurrency error
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path('Mythic/Utilities/GameManager/Legendary/LegendaryInterface.swift')
+          text = path.read_text()
+
+          old = '''            var launchSession: LaunchSession?
+
+            // uses legendary's native launch process
+            switch platform {
+            case .macOS:
+                do {} // no environment variables need to be assembled.
+            case .windows:
+'''
+
+          new = '''            let launchSession: LaunchSession?
+
+            // uses legendary's native launch process
+            switch platform {
+            case .macOS:
+                launchSession = nil
+            case .windows:
+'''
+
+          if old not in text:
+              raise SystemExit('Expected launchSession declaration block was not found; refusing to modify the file.')
+
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          print('Fixed mutable launchSession capture for Swift 6.')
+          PY
+
+      - name: Verify source change
+        run: |
+          grep -n -A12 -B3 'let launchSession: LaunchSession?' Mythic/Utilities/GameManager/Legendary/LegendaryInterface.swift
+          git diff --check
+
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add Mythic/Utilities/GameManager/Legendary/LegendaryInterface.swift
+          git commit -m 'Fix Swift 6 launch session capture'
+          git push origin HEAD:ui/kraken-native-overhaul
+
+      - name: Dispatch full build and tests
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run build.yml --ref ui/kraken-native-overhaul
+
+      - name: Remove temporary repair workflow
+        run: |
+          git rm .github/workflows/kraken-repair.yml
+          git commit -m 'Remove temporary CI repair workflow'
+          git push origin HEAD:ui/kraken-native-overhaul
