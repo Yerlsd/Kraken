@@ -1,18 +1,15 @@
 import SwiftUI
+import SwordRPC
 
-/// Unified game library. The page owns its search/filter chrome so the grid
-/// can resize naturally instead of relying on a fixed Form layout.
 struct LibraryView: View {
     @Bindable private var gameDataStore: GameDataStore = .shared
     @Bindable private var gameListViewModel: GameListViewModel = .shared
-
     @State private var isGameImportSheetPresented = false
     @CodableAppStorage("gameListLayout") private var gameListLayout: GameListViewModel.Layout = .grid
 
     var body: some View {
         VStack(spacing: 0) {
             libraryToolbar
-
             Divider()
 
             if gameListViewModel.sortedLibrary.isEmpty {
@@ -85,38 +82,20 @@ struct LibraryView: View {
             TextField("Search games", text: $gameListViewModel.searchString)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 220, maxWidth: 420)
-                .overlay(alignment: .trailing) {
-                    if !gameListViewModel.searchString.isEmpty {
-                        Button {
-                            gameListViewModel.searchString = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.trailing, 7)
-                    }
-                }
 
             Menu {
                 Section("Storefront") {
                     ForEach(Game.Storefront.allCases, id: \.self) { storefront in
-                        Toggle(
-                            storefront.description,
-                            isOn: searchTokenBinding(for: .storefront(storefront))
-                        )
+                        Toggle(storefront.description, isOn: searchTokenBinding(for: .storefront(storefront)))
                     }
                 }
-
                 Section("Installation") {
                     Toggle("Installed", isOn: searchTokenBinding(for: .installed))
                     Toggle("Not Installed", isOn: searchTokenBinding(for: .notInstalled))
                 }
-
                 Section("Other") {
                     Toggle("Favorites", isOn: searchTokenBinding(for: .favourited))
                 }
-
                 if !gameListViewModel.searchTokens.isEmpty {
                     Divider()
                     Button("Clear Filters") {
@@ -131,15 +110,12 @@ struct LibraryView: View {
             Spacer()
 
             if gameListViewModel.isUpdatingLibrary {
-                ProgressView()
-                    .controlSize(.small)
+                ProgressView().controlSize(.small)
             }
 
             Picker("View", selection: $gameListLayout) {
-                Image(systemName: "square.grid.2x2")
-                    .tag(GameListViewModel.Layout.grid)
-                Image(systemName: "list.bullet")
-                    .tag(GameListViewModel.Layout.list)
+                Image(systemName: "square.grid.2x2").tag(GameListViewModel.Layout.grid)
+                Image(systemName: "list.bullet").tag(GameListViewModel.Layout.list)
             }
             .pickerStyle(.segmented)
             .frame(width: 90)
