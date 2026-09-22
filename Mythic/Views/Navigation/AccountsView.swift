@@ -35,9 +35,9 @@ struct AccountsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Label("Why Steam looks different", systemImage: "info.circle")
+                    Label("How store accounts work", systemImage: "info.circle")
                         .font(.headline)
-                    Text("Kraken currently discovers Steam games from the Steam installation and local app manifests. It does not need a separate Steam web login for that workflow.")
+                    Text("Epic uses Kraken's account authentication flow. Steam games are discovered from the local Steam installation, so Kraken does not ask you for a separate Steam web login.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -110,7 +110,7 @@ struct AccountsView: View {
         AccountCard(
             title: "Steam",
             subtitle: steamInstalled ? "Steam is installed on this Mac" : "Steam was not detected",
-            image: Image("Steam"),
+            image: Image(systemName: "gamecontroller.fill"),
             tint: .blue,
             status: steamInstalled ? "Detected" : "Unavailable",
             statusIcon: steamInstalled ? "checkmark.circle.fill" : "exclamationmark.circle",
@@ -148,8 +148,9 @@ struct AccountsView: View {
                         .resizable()
                         .scaledToFit()
                         .frame(width: 54, height: 54)
-                        .clipShape(.rect(cornerRadius: 14))
-                        .background(.quaternary, in: .rect(cornerRadius: 14))
+                        .foregroundStyle(tint)
+                        .padding(10)
+                        .background(tint.opacity(0.12), in: .rect(cornerRadius: 14))
 
                     VStack(alignment: .leading, spacing: 3) {
                         Text(title)
