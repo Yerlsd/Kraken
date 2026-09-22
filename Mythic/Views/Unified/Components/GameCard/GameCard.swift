@@ -7,6 +7,7 @@ struct GameCard: View {
 
     @State private var isImageEmpty = true
     @State private var isHovering = false
+    @AppStorage("libraryArtworkGlow") private var artworkGlow = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -61,7 +62,11 @@ struct GameCard: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(.quaternary, lineWidth: 1)
         }
-        .shadow(color: .black.opacity(isHovering ? 0.16 : 0.08), radius: isHovering ? 14 : 8, y: isHovering ? 7 : 4)
+        .shadow(
+            color: .black.opacity(artworkGlow ? (isHovering ? 0.16 : 0.08) : 0),
+            radius: artworkGlow ? (isHovering ? 14 : 8) : 0,
+            y: artworkGlow ? (isHovering ? 7 : 4) : 0
+        )
         .scaleEffect(isHovering ? 1.012 : 1)
         .animation(.easeOut(duration: 0.16), value: isHovering)
         .onHover { isHovering = $0 }
