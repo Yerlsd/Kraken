@@ -50,10 +50,8 @@ struct KrakenApp: App {
         )
         .commands {
             CommandGroup(replacing: .appInfo) {
-                Button {
+                Button("About Kraken") {
                     openWindow(id: "about")
-                } label: {
-                    Text("About Kraken")
                 }
             }
 
@@ -77,25 +75,14 @@ struct KrakenApp: App {
             }
 
             CommandGroup(replacing: .help) {
-                Link("Documentation", destination: URL(string: "https://docs.getmythic.app/")!)
-                Link("Discord server", destination: URL(string: "https://discord.gg/kQKdvjTVqh")!)
-                Link("Compatibility database", destination: URL(string: "https://docs.google.com/spreadsheets/d/1W_1UexC1VOcbP2CHhoZBR5-8koH-ZPxJBDWntwH-tsc/")!)
-
-                Section("Support the project") {
-                    Link("GitHub Sponsors", destination: URL(string: "https://github.com/sponsors/MythicApp")!)
-                    Link("Ko-Fi", destination: URL(string: "https://ko-fi.com/vapidinfinity")!)
-                }
-
-                Section("More") {
-                    Link("GitHub repository", destination: URL(string: "https://github.com/Yerlsd/Kraken")!)
-                    Link("Website", destination: URL(string: "https://getmythic.app/")!)
-                }
+                Link("Kraken on GitHub", destination: URL(string: "https://github.com/Yerlsd/Kraken")!)
+                Link("Report an Issue…", destination: URL(string: "https://github.com/Yerlsd/Kraken/issues/new")!)
+                Link("Compatibility Database", destination: URL(string: "https://github.com/Yerlsd/Kraken#compatibility")!)
             }
         }
 
         Window("About Kraken", id: "about") {
             AboutView()
-                .frame(width: 320, height: 430)
                 .onAppear {
                     if let window = NSApp.window(withID: "about") {
                         window.isImmersive = true
