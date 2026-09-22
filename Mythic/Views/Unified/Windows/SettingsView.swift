@@ -58,16 +58,6 @@ struct SettingsView: View {
             .navigationTitle(selection.rawValue)
         }
         .frame(minWidth: 760, minHeight: 520)
-        .task(priority: .background) {
-            discordRPC.setPresence({
-                var presence: RichPresence = .init()
-                presence.details = "Configuring Kraken"
-                presence.state = "Settings"
-                presence.timestamps.start = .now
-                presence.assets.largeImage = "macos_512x512_2x"
-                return presence
-            }())
-        }
     }
 }
 
