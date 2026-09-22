@@ -5,7 +5,7 @@ import SwiftUI
 /// Only controls backed by real Kraken state are exposed here; game-specific
 /// runtime and launch configuration stays in the game's own settings window.
 struct SettingsView: View {
-    private enum Section: String, CaseIterable, Identifiable {
+    private enum Section: String, CaseIterable, Identifiable, Hashable {
         case general = "General"
         case library = "Library"
         case downloads = "Downloads"
@@ -77,9 +77,7 @@ private struct GeneralSettings: View {
 
     var body: some View {
         Section {
-            LabeledContent("Application") {
-                Text("Kraken")
-            }
+            LabeledContent("Application") { Text("Kraken") }
             LabeledContent("Purpose") {
                 Text("Windows gaming on macOS")
                     .foregroundStyle(.secondary)
@@ -139,7 +137,6 @@ private struct LibrarySettings: View {
                 Text("Grid").tag(GameListViewModel.Layout.grid)
                 Text("List").tag(GameListViewModel.Layout.list)
             }
-
             Toggle("Artwork depth and hover glow", isOn: $artworkGlow)
         } header: {
             Text("Library appearance")
@@ -195,7 +192,6 @@ private struct UpdateSettings: View {
             Button("Check for Kraken Updates…", systemImage: "arrow.down.app") {
                 SparkleUpdateController.shared.checkForUpdates(userInitiated: true)
             }
-
             Button("Check for Compatibility Engine Updates…", systemImage: "arrow.down.app.dashed") {
                 Task(priority: .userInitiated) {
                     await Engine.displayUpdateChecker(userInitiated: true)
@@ -255,7 +251,6 @@ private struct EngineSettings: View {
                     Text(engineVersion ?? "Checking…")
                         .foregroundStyle(.secondary)
                 }
-
                 Button("Force Quit Windows Applications", systemImage: "xmark.app") {
                     forceQuitRunning = true
                     do {
