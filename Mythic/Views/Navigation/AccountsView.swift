@@ -3,8 +3,7 @@ import AppKit
 import SwordRPC
 
 /// Storefront account workspace. Epic has a real web-auth flow; Steam currently
-/// uses the local Steam client, so the UI is honest about that distinction rather
-/// than pretending Kraken has a Steam OAuth account system it does not have.
+/// uses the local Steam client, so the UI is explicit about that distinction.
 struct AccountsView: View {
     @ObservedObject private var epicWebAuthViewModel: EpicWebAuthViewModel = .shared
 
@@ -77,7 +76,7 @@ struct AccountsView: View {
             statusIcon: signedInUser != nil ? "checkmark.circle.fill" : "person.crop.circle",
             actionTitle: signedInUser != nil ? "Sign Out" : "Sign In",
             actionIcon: signedInUser != nil ? "rectangle.portrait.and.arrow.right" : "person.crop.circle.badge.plus",
-            actionRole: signedInUser != nil ? .destructive : nil,
+            destructive: signedInUser != nil,
             action: {
                 if signedInUser != nil {
                     isEpicSignOutConfirmationAlertPresented = true
@@ -117,10 +116,12 @@ struct AccountsView: View {
             statusIcon: steamInstalled ? "checkmark.circle.fill" : "exclamationmark.circle",
             actionTitle: steamInstalled ? "Open Steam" : "Install Steam",
             actionIcon: "arrow.up.right.square",
-            actionRole: nil,
+            destructive: false,
             action: {
                 if steamInstalled {
-                    NSWorkspace.shared.open(URL(fileURLWithPath: "/Applications/Steam.app"))
+                    if let steamURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.valvesoftware.steam") {
+                        NSWorkspace.shared.open(steamURL)
+                    }
                 } else if let url = URL(string: "https://store.steampowered.com/about/") {
                     NSWorkspace.shared.open(url)
                 }
@@ -137,7 +138,7 @@ struct AccountsView: View {
         let statusIcon: String
         let actionTitle: String
         let actionIcon: String
-        let actionRole: ButtonRole?
+        let destructive: Bool
         let action: () -> Void
 
         var body: some View {
@@ -169,13 +170,21 @@ struct AccountsView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(tint)
                     Spacer()
-                    Button(action: action) {
-                        Label(actionTitle, systemImage: actionIcon)
+
+                    if destructive {
+                        Button(role: .destructive, action: action) {
+                            Label(actionTitle, systemImage: actionIcon)
+                        }
+                        .buttonStyle(.bordered)
+                        .clipShape(.capsule)
+                    } else {
+                        Button(action: action) {
+                            Label(actionTitle, systemImage: actionIcon)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(tint)
+                        .clipShape(.capsule)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .clipShape(.capsule)
-                    .tint(tint)
-                    .role(actionRole)
                 }
             }
             .padding(20)
