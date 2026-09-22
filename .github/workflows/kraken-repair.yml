@@ -1,9 +1,10 @@
 name: Kraken Repair
 
 on:
-  push:
+  pull_request:
+    types: [synchronize]
     branches:
-      - ui/kraken-native-overhaul
+      - engine3/wine11
 
 permissions:
   contents: write
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   repair:
-    if: github.ref == 'refs/heads/ui/kraken-native-overhaul'
+    if: github.event.pull_request.head.ref == 'ui/kraken-native-overhaul' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: macos-26
     steps:
       - name: Check out branch
