@@ -32,7 +32,7 @@ struct KrakenApp: App {
                 }
             }
             .modifier(SparkleUpdater())
-            .frame(minWidth: 980, minHeight: 620)
+            .frame(minWidth: 820, minHeight: 560)
         }
         .handlesExternalEvents(matching: ["open"])
         .environment(
@@ -76,8 +76,8 @@ struct KrakenApp: App {
 
             CommandGroup(replacing: .help) {
                 Link("Kraken on GitHub", destination: URL(string: "https://github.com/Yerlsd/Kraken")!)
-                Link("Report an Issue…", destination: URL(string: "https://github.com/Yerlsd/Kraken/issues/new")!)
-                Link("Compatibility Database", destination: URL(string: "https://github.com/Yerlsd/Kraken#compatibility")!)
+                Link("Documentation", destination: URL(string: "https://github.com/Yerlsd/Kraken#readme")!)
+                Link("Community Support…", destination: URL(string: "https://discord.gg/kQKdvjTVqh")!)
             }
         }
 

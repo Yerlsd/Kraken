@@ -44,7 +44,7 @@ struct AboutView: View {
 
                 acknowledgement(title: "CodeWeavers & Wine", detail: "The Wine technology that provides the Windows compatibility layer.", url: "https://www.codeweavers.com/")
                 acknowledgement(title: "Whisky", detail: "An important foundation for the compatibility tooling Kraken builds on.", url: "https://getwhisky.app/")
-                acknowledgement(title: "Kraken source", detail: "View the project, report issues and follow development.", url: "https://github.com/Yerlsd/Kraken")
+                acknowledgement(title: "Kraken source", detail: "View the project, releases and development updates.", url: "https://github.com/Yerlsd/Kraken")
             }
             .padding(.horizontal, 24)
 

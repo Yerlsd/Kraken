@@ -78,34 +78,21 @@ struct LibraryView: View {
     }
 
     private var libraryToolbar: some View {
+        ViewThatFits(in: .horizontal) {
+            fullLibraryToolbar
+            compactLibraryToolbar
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+    }
+
+    private var fullLibraryToolbar: some View {
         HStack(spacing: 12) {
             TextField("Search games", text: $gameListViewModel.searchString)
                 .textFieldStyle(.roundedBorder)
                 .frame(minWidth: 220, maxWidth: 420)
 
-            Menu {
-                Section("Storefront") {
-                    ForEach(Game.Storefront.allCases, id: \.self) { storefront in
-                        Toggle(storefront.description, isOn: searchTokenBinding(for: .storefront(storefront)))
-                    }
-                }
-                Section("Installation") {
-                    Toggle("Installed", isOn: searchTokenBinding(for: .installed))
-                    Toggle("Not Installed", isOn: searchTokenBinding(for: .notInstalled))
-                }
-                Section("Other") {
-                    Toggle("Favorites", isOn: searchTokenBinding(for: .favourited))
-                }
-                if !gameListViewModel.searchTokens.isEmpty {
-                    Divider()
-                    Button("Clear Filters") {
-                        gameListViewModel.searchTokens.removeAll()
-                    }
-                }
-            } label: {
-                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-            }
-            .menuStyle(.borderlessButton)
+            fullFilterMenu
 
             Spacer()
 
@@ -136,8 +123,91 @@ struct LibraryView: View {
             }
             .help("Refresh Library")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+    }
+
+    private var compactLibraryToolbar: some View {
+        HStack(spacing: 8) {
+            TextField("Search games", text: $gameListViewModel.searchString)
+                .textFieldStyle(.roundedBorder)
+                .frame(minWidth: 150, maxWidth: 320)
+
+            compactFilterMenu
+
+            Spacer(minLength: 2)
+
+            if gameListViewModel.isUpdatingLibrary {
+                ProgressView().controlSize(.small)
+            }
+
+            Picker("View", selection: $gameListLayout) {
+                Image(systemName: "square.grid.2x2").tag(GameListViewModel.Layout.grid)
+                Image(systemName: "list.bullet").tag(GameListViewModel.Layout.list)
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 82)
+
+            Button {
+                isGameImportSheetPresented = true
+            } label: {
+                Image(systemName: "plus")
+            }
+            .buttonStyle(.bordered)
+            .help("Import Game")
+
+            refreshButton
+        }
+    }
+
+    private var fullFilterMenu: some View {
+        Menu {
+            filterMenuItems
+        } label: {
+            Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    private var compactFilterMenu: some View {
+        Menu {
+            filterMenuItems
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease.circle")
+        }
+        .menuStyle(.borderlessButton)
+        .help("Filter games")
+    }
+
+    @ViewBuilder
+    private var filterMenuItems: some View {
+        Section("Storefront") {
+            ForEach(Game.Storefront.allCases, id: \.self) { storefront in
+                Toggle(storefront.description, isOn: searchTokenBinding(for: .storefront(storefront)))
+            }
+        }
+        Section("Installation") {
+            Toggle("Installed", isOn: searchTokenBinding(for: .installed))
+            Toggle("Not Installed", isOn: searchTokenBinding(for: .notInstalled))
+        }
+        Section("Other") {
+            Toggle("Favorites", isOn: searchTokenBinding(for: .favourited))
+        }
+        if !gameListViewModel.searchTokens.isEmpty {
+            Divider()
+            Button("Clear Filters") {
+                gameListViewModel.searchTokens.removeAll()
+            }
+        }
+    }
+
+    private var refreshButton: some View {
+        Button {
+            Task(priority: .userInitiated) {
+                try? await gameDataStore.refreshFromStorefronts()
+            }
+        } label: {
+            Image(systemName: "arrow.clockwise")
+        }
+        .help("Refresh Library")
     }
 
     private func searchTokenBinding(for token: GameListViewModel.SearchToken) -> Binding<Bool> {

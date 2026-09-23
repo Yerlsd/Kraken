@@ -50,10 +50,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             "discordRPC": true,
             "engineAutomaticallyChecksForUpdates": true,
             "quitOnAppClose": false,
-            // FIXME: dangerous but necessary force-unwrap
             // FIXME: very rarely, some users may not have write access to appGames.
             // FIXME: e.g. MGM cases
-            "installBaseURL": Bundle.appGames!
+            "installBaseURL": Bundle.defaultGamesDirectory
         ])
 
         Task(priority: .utility) {

@@ -74,6 +74,9 @@ struct HomeView: View {
                 .buttonStyle(.borderedProminent)
             }
         }
+        .onChange(of: gameDataStore.recent?.id) { _, _ in
+            heroImageEmpty = true
+        }
         .task(priority: .background) {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
@@ -92,12 +95,18 @@ struct HomeView: View {
            let binding = gameDataStore.binding(for: recent.id) {
             ZStack(alignment: .bottomLeading) {
                 GameImageCard(
+                    game: recent,
                     url: recent.horizontalImageURL,
                     isImageEmpty: $heroImageEmpty
                 )
                 .aspectRatio(2.25, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipped()
+
+                if heroImageEmpty {
+                    heroFallback
+                        .transition(.opacity)
+                }
 
                 LinearGradient(
                     colors: [.clear, .black.opacity(0.82)],
@@ -125,6 +134,7 @@ struct HomeView: View {
             }
             .clipShape(.rect(cornerRadius: 22))
             .shadow(color: .black.opacity(0.16), radius: 18, y: 8)
+            .animation(.easeInOut(duration: 0.25), value: heroImageEmpty)
         } else {
             HStack(spacing: 18) {
                 Image("KrakenLogo")
@@ -146,6 +156,25 @@ struct HomeView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.regularMaterial)
             .clipShape(.rect(cornerRadius: 22))
+        }
+    }
+
+    private var heroFallback: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.accentColor.opacity(0.24), .black.opacity(0.22)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Image("KrakenLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 116, height: 116)
+                .clipShape(.rect(cornerRadius: 24))
+                .shadow(color: .black.opacity(0.24), radius: 18, y: 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .padding(36)
         }
     }
 

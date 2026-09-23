@@ -9,32 +9,43 @@
 
 import SwiftUI
 import SwordRPC
-import WebKit
 
 struct StoreView: View {
-    private var canGoBack = false
-    private var canGoForward = false
-    @State private var url: URL = .init(string: "https://store.epicgames.com/")!
-
-    @State private var refreshIconRotation: Angle = .degrees(0)
+    @StateObject private var browser = StoreBrowserController()
+    @State private var storeError: Error?
+    private let storeURL = URL(string: "https://store.epicgames.com/")
 
     @CodableAppStorage("epicGamesWebDataStore") var epicGamesWebDataStore: UUID = .init()
 
     var body: some View {
-        WebView(
-            url: url,
-            datastore: .init(forIdentifier: epicGamesWebDataStore),
-            error: .constant(nil),
-            canGoBack: canGoBack,
-            canGoForward: canGoForward
-        )
-
+        Group {
+            if let storeURL {
+                WebView(
+                    url: storeURL,
+                    datastore: .init(forIdentifier: epicGamesWebDataStore),
+                    browser: browser,
+                    error: $storeError
+                )
+                .overlay {
+                    if let storeError {
+                        ContentUnavailableView(
+                            "Store unavailable",
+                            systemImage: "wifi.exclamationmark",
+                            description: Text(storeError.localizedDescription)
+                        )
+                        .padding()
+                    }
+                }
+            } else {
+                ContentUnavailableView("Store unavailable", systemImage: "storefront")
+            }
+        }
         .navigationTitle("Store")
 
         .task(priority: .background) {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
-                presence.details = "Currently browsing \(url)"
+                presence.details = "Browsing the Epic Games Store"
                 presence.state = "Looking for games to purchase"
                 presence.timestamps.start = .now
                 presence.assets.largeImage = "macos_512x512_2x"
@@ -46,48 +57,45 @@ struct StoreView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    if canGoBack {
-                        url = .init(string: "javascript:history.back();")!
-                    }
+                    browser.goBack()
                 } label: {
                     Image(systemName: "arrow.left")
                         .symbolVariant(.circle)
                 }
-                .disabled(!canGoBack)
+                .disabled(!browser.canGoBack)
+                .help("Go Back")
             }
-            
+
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    if canGoForward {
-                        url = .init(string: "javascript:history.forward();")!
-                    }
+                    browser.goForward()
                 } label: {
                     Image(systemName: "arrow.right")
                         .symbolVariant(.circle)
                 }
-                .disabled(!canGoForward)
+                .disabled(!browser.canGoForward)
+                .help("Go Forward")
             }
-            
+
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    url = .init(string: "javascript:location.reload();")!
-                    withAnimation(.default) {
-                        refreshIconRotation = .degrees(360)
-                    } completion: {
-                        refreshIconRotation = .degrees(0)
-                    }
+                    storeError = nil
+                    browser.reload()
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .symbolVariant(.circle)
-                        .rotationEffect(refreshIconRotation)
                 }
+                .help("Reload Store")
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button {
-                    NSWorkspace.shared.open(url)
+                    if let storeURL = browser.currentURL ?? storeURL {
+                        NSWorkspace.shared.open(storeURL)
+                    }
                 } label: {
                     Image(systemName: "arrow.up.forward")
                 }
+                .help("Open Store in Browser")
             }
         }
     }

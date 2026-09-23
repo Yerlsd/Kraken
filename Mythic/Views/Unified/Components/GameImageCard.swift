@@ -11,6 +11,20 @@ import Foundation
 import SwiftUI
 import Shimmer
 
+private struct GameArtworkFadeInModifier: ViewModifier {
+    @State private var opacity = 0.0
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(opacity)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.5)) {
+                    opacity = 1
+                }
+            }
+    }
+}
+
 struct GameImageCard: View {
     var game: Game?
     var url: URL?
@@ -64,7 +78,7 @@ struct GameImageCard: View {
                             
                             image
                                 .resizable()
-                                .modifier(FadeInModifier())
+                                .modifier(GameArtworkFadeInModifier())
                                 .onAppear {
                                     withAnimation { isImageEmpty = false }
                                 }
@@ -147,7 +161,7 @@ extension GameImageCard {
                     image
                         .resizable()
                         .scaledToFit()
-                        .modifier(FadeInModifier())
+                        .modifier(GameArtworkFadeInModifier())
                 }
             } else {
                 RoundedRectangle(cornerRadius: 20)

@@ -73,7 +73,7 @@ struct GameSettingsView: View {
                     }
                 }
         }
-        .frame(minWidth: 900, minHeight: 620)
+        .frame(minWidth: 780, minHeight: 560)
         .task {
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
             selectedGraphicsBackend = game.launchProfile.graphicsBackend
@@ -116,7 +116,7 @@ struct GameSettingsView: View {
                 hero
                 HStack(spacing: 12) {
                     statusCard(title: "Storefront", value: game.storefront?.description ?? "Local", icon: "bag")
-                    statusCard(title: "Runtime", value: game.launchProfile.effectiveRuntimeID.rawValue, icon: "shippingbox")
+                    statusCard(title: "Runtime", value: game.launchProfile.effectiveRuntimeID.displayName, icon: "shippingbox")
                     statusCard(title: "Mode", value: isCompatibilityOverrideEnabled ? "Manual" : "Automatic", icon: isCompatibilityOverrideEnabled ? "slider.horizontal.3" : "wand.and.stars")
                 }
                 sectionCard(title: "Quick actions", icon: "bolt.fill") {
@@ -263,13 +263,7 @@ struct GameSettingsView: View {
                                 }
                             Picker("Runtime", selection: $selectedRuntimeID) {
                                 ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
-                                    HStack(spacing: 6) {
-                                        Text(runtime.name)
-                                        Text(runtime.id == .wine11 ? "Engine 3" : (runtime.id == .gptk ? "GPTK" : "Engine 2"))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .tag(runtime.id)
+                                    Text(runtime.id.displayName).tag(runtime.id)
                                 }
                             }
                             .disabled(!isCompatibilityOverrideEnabled)
@@ -410,7 +404,7 @@ struct GameSettingsView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(isCompatibilityOverrideEnabled ? "Manual compatibility" : "Automatic compatibility")
                         .font(.headline)
-                    Text(isCompatibilityOverrideEnabled ? "Runtime: \(selectedRuntimeID.rawValue)" : "Kraken manages the runtime and container for this game.")
+                    Text(isCompatibilityOverrideEnabled ? "Runtime: \(selectedRuntimeID.displayName)" : "Kraken manages the runtime and container for this game.")
                         .foregroundStyle(.secondary)
                 }
                 Spacer()

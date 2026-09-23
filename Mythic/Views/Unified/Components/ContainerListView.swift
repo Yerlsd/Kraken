@@ -12,92 +12,166 @@ import OSLog
 import SwordRPC
 
 struct ContainerListView: View {
-    @State private var isContainerConfigurationViewPresented = false
-    @State private var isDeletionAlertPresented = false
-    
     @State private var isContainerCreationViewPresented = false
+    @State private var refreshID = UUID()
     
     var body: some View {
-        if Engine.isInstalled {
-            ForEach(Wine.containerObjects) { container in
-                HStack {
-                    Text(container.name)
+        let containers = Wine.containerObjects
 
-                    Button {
-                        NSWorkspace.shared.open(container.url)
-                    } label: {
-                        Text("\(container.url.prettyPath) \(Image(systemName: "link"))")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .scaledToFit()
+        if containers.isEmpty {
+            if Engine.isInstalled {
+                ContentUnavailableView {
+                    Label("No Containers Yet", systemImage: "shippingbox")
+                } description: {
+                    Text("Create a container to give Windows games an isolated environment.")
+                } actions: {
+                    Button("Create Container", systemImage: "plus") {
+                        isContainerCreationViewPresented = true
                     }
-                    .buttonStyle(.accessoryBar)
-
-                    Spacer()
-
-                    Button {
-                        isContainerConfigurationViewPresented = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
-                    .disabled(!Engine.isInstalled)
-                    .buttonStyle(.borderless)
-                    .help("Modify default settings for \"\(container.name)\"")
-                    .sheet(isPresented: $isContainerConfigurationViewPresented) {
-                        ContainerConfigurationView(containerURL: .constant(container.url),
-                                                   isPresented: $isContainerConfigurationViewPresented)
-                    }
-
-                    Button {
-                        isDeletionAlertPresented = true
-                    } label: {
-                        Image(systemName: "xmark.bin")
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .alert(isPresented: $isDeletionAlertPresented) {
-                        return Alert(
-                            title: .init("Are you sure you want to delete \"\(container.name)\"?"),
-                            message: .init("This process cannot be undone."),
-                            primaryButton: .destructive(.init("Delete")) {
-                                do {
-                                    try Wine.deleteContainer(containerURL: container.url)
-                                } catch {
-                                    Logger.file.error("Unable to delete container \(container.name): \(error.localizedDescription)")
-                                    isDeletionAlertPresented = false
-                                }
-                            },
-                            secondaryButton: .cancel(.init("Cancel")) {
-                                isDeletionAlertPresented = false
-                            }
-                        )
+                    .buttonStyle(.borderedProminent)
+                }
+                .sheet(isPresented: $isContainerCreationViewPresented) {
+                    ContainerCreationView(isPresented: $isContainerCreationViewPresented)
+                }
+            } else {
+                Engine.NotInstalledView()
+            }
+        } else {
+            LazyVStack(spacing: 10) {
+                ForEach(containers) { container in
+                    ContainerListRow(container: container) {
+                        refreshID = UUID()
                     }
                 }
             }
-        } else if Wine.containerURLs.isEmpty {
-            ContentUnavailableView(
-                "No containers are initialised. 😢",
-                systemImage: "cube.transparent",
-                description: Text("""
-                    Containers will appear here.
-                    You must create a container in order to launch a Windows® game.
-                    """)
-            )
-            
-            Button {
-                isContainerCreationViewPresented = true
-            } label: {
-                Label("Create Container", systemImage: "plus")
-                    .padding(5)
-            }
-            .buttonStyle(.borderedProminent)
-            .sheet(isPresented: $isContainerCreationViewPresented) {
-                ContainerCreationView(isPresented: $isContainerCreationViewPresented)
-            }
-        } else {
-            Engine.NotInstalledView()
-                .frame(maxWidth: .infinity, alignment: .center)
+            .id(refreshID)
         }
+    }
+}
+
+private struct ContainerListRow: View {
+    let container: Wine.Container
+    let onChange: () -> Void
+
+    @State private var isSettingsPresented = false
+    @State private var isDeleteConfirmationPresented = false
+    @State private var deletionError: Error?
+
+    private var runtimeIsAvailable: Bool {
+        Engine.isRuntimeInstalled(container.runtimeID)
+    }
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "shippingbox.fill")
+                .font(.title3)
+                .foregroundStyle(.tint)
+                .frame(width: 42, height: 42)
+                .background(Color.accentColor.opacity(0.1), in: .rect(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(container.name)
+                    .font(.headline)
+                    .lineLimit(1)
+
+                Text(container.url.prettyPath)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+
+                HStack(spacing: 12) {
+                    Label(container.runtimeID.displayName, systemImage: "cpu")
+                    Label(
+                        runtimeIsAvailable ? "Ready" : "Runtime unavailable",
+                        systemImage: runtimeIsAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+                    )
+                    .foregroundStyle(runtimeIsAvailable ? Color.secondary : Color.orange)
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                NSWorkspace.shared.open(container.url)
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.bordered)
+            .help("Show \(container.name) in Finder")
+
+            Button {
+                isSettingsPresented = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .disabled(!runtimeIsAvailable)
+            .help("Configure \(container.name)")
+            .sheet(isPresented: $isSettingsPresented) {
+                ContainerConfigurationView(
+                    containerURL: .constant(container.url),
+                    isPresented: $isSettingsPresented
+                )
+            }
+
+            Menu {
+                Button("Show in Finder", systemImage: "folder") {
+                    NSWorkspace.shared.open(container.url)
+                }
+                Button("Container Settings", systemImage: "gearshape") {
+                    isSettingsPresented = true
+                }
+                .disabled(!runtimeIsAvailable)
+                Divider()
+                Button("Delete Container…", systemImage: "trash", role: .destructive) {
+                    isDeleteConfirmationPresented = true
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .frame(width: 22, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .help("More actions for \(container.name)")
+            .confirmationDialog(
+                "Delete \(container.name)?",
+                isPresented: $isDeleteConfirmationPresented,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Container and Data", role: .destructive) {
+                    do {
+                        try Wine.deleteContainer(containerURL: container.url)
+                        onChange()
+                    } catch {
+                        deletionError = error
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This permanently removes the container and the Windows files stored inside it.")
+            }
+            .alert("Unable to delete container", isPresented: Binding(
+                get: { deletionError != nil },
+                set: { if !$0 { deletionError = nil } }
+            ), presenting: deletionError) { _ in
+                Button("OK", role: .cancel) { deletionError = nil }
+            } message: { error in
+                Text(error.localizedDescription)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+        .overlay {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        }
+        .clipShape(.rect(cornerRadius: 14, style: .continuous))
     }
 }
 

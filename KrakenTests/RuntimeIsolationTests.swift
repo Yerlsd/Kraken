@@ -41,7 +41,7 @@ final class RuntimeIsolationTests: XCTestCase {
         let descriptor = RuntimeRegistry.shared.descriptor(for: .mythicEngine)
         XCTAssertNotNil(descriptor)
         XCTAssertEqual(descriptor?.family, .mythicEngine)
-        XCTAssertEqual(descriptor?.displayName, "Mythic Engine")
+        XCTAssertEqual(descriptor?.displayName, "Kraken Engine 2")
         XCTAssertEqual(descriptor?.baseDirectory, Engine.directory)
         XCTAssertTrue(descriptor?.capabilities.contains(.providesDXVK) == true)
         XCTAssertTrue(descriptor?.capabilities.contains(.providesWineD3D) == true)

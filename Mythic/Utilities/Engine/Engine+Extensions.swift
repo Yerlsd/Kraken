@@ -28,11 +28,11 @@ extension Engine {
 
 extension Engine {
     struct NotInstalledError: LocalizedError {
-        var errorDescription: String? = String(localized: "Mythic Engine is not installed.")
+        var errorDescription: String? = String(localized: "Kraken compatibility engine is not installed.")
     }
 
     struct UnableToRetrieveCompatibleReleaseError: LocalizedError {
-        var errorDescription: String? = String(localized: "Unable to retrieve a compatible Mythic Engine release for this stream.")
+        var errorDescription: String? = String(localized: "Unable to retrieve a compatible Kraken Engine release for this stream.")
     }
 }
 
@@ -49,13 +49,13 @@ extension Engine {
             VStack {
                 if !Engine.isInstalled {
                     ContentUnavailableView(
-                        "Mythic Engine is not installed.",
+                        "Kraken Engine 2 is not installed.",
                         systemImage: "arrow.down.circle.badge.xmark.fill",
                         description: .init("""
-                    To access containers, Mythic Engine must be installed.
+                    To access these containers, install Kraken Engine 2.
                     """)
                     )
-                    Button("Install Mythic Engine", systemImage: "arrow.down.circle.fill") {
+                    Button("Install Kraken Engine 2", systemImage: "arrow.down.circle.fill") {
                         isInstallationViewPresented = true
                     }
                 }

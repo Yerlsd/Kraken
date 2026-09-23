@@ -1,131 +1,153 @@
 //
 //  SupportView.swift
-//  Mythic
+//  Kraken
 //
-//  Created by vapidinfinity (esi) on 12/9/2023.
-//
-
-// Copyright © 2023-2025 vapidinfinity
 
 import SwiftUI
 import AppKit
 import SwordRPC
 
 struct SupportView: View {
+    private let resources = [
+        SupportResource(
+            title: "Project on GitHub",
+            detail: "Source code, releases, and development updates.",
+            action: "Open Repository",
+            symbol: "chevron.left.forwardslash.chevron.right",
+            tint: .primary,
+            urlString: "https://github.com/Yerlsd/Kraken"
+        ),
+        SupportResource(
+            title: "Kraken Releases",
+            detail: "Download the latest available version of Kraken.",
+            action: "View Releases",
+            symbol: "arrow.down.app",
+            tint: .blue,
+            urlString: "https://github.com/Yerlsd/Kraken/releases"
+        ),
+        SupportResource(
+            title: "Community Support",
+            detail: "Ask questions and share game compatibility findings.",
+            action: "Open Discord",
+            symbol: "bubble.left.and.bubble.right",
+            tint: .indigo,
+            urlString: "https://discord.gg/kQKdvjTVqh"
+        )
+    ]
 
     var body: some View {
-        Text("Support")
-            .font(.title)
-            .fontWeight(.bold)
-            .frame(maxWidth: 400, alignment: .leading)
-            .padding(.leading)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Support")
+                        .font(.largeTitle.bold())
+                    Text("Find Kraken updates and community help.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
 
-        Spacer()
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 260, maximum: 420), spacing: 14)],
+                    alignment: .leading,
+                    spacing: 14
+                ) {
+                    ForEach(resources) { resource in
+                        SupportResourceCard(resource: resource)
+                    }
+                }
 
-        VStack {
-            Text("Resources")
-                .font(.title2)
-                .fontWeight(.bold)
-                .frame(maxWidth: 400, alignment: .leading)
-            HStack{
-                Button("Documentation"){
-                    openLink(urlString: "https://docs.getmythic.app/")
+                Label {
+                    Text("When asking for help, include the game title, your macOS version, and relevant launch details. Do not share account credentials or private account files.")
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "info.circle")
+                        .foregroundStyle(.secondary)
                 }
-                verticalDivider(height: 30)
-                Button("FAQ"){
-                    openLink(urlString: "https://getmythic.app/faq/")
-                }
-                verticalDivider(height: 30)
-                Button("Compatibility List"){
-                    openLink(urlString: "https://docs.google.com/spreadsheets/d/1W_1UexC1VOcbP2CHhoZBR5-8koH-ZPxJBDWntwH-tsc/")
-                }
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: 760, alignment: .leading)
             }
-            .padding(.bottom)
-            .frame(maxWidth: 400, alignment: .leading)
-
-            Text("Recieve Help")
-                .font(.title2)
-                .fontWeight(.bold)
-                .frame(maxWidth: 400, alignment: .leading)
-            HStack{
-                Button("Report an issue"){
-                    openLink(urlString: "https://github.com/Yerlsd/Kraken/issues")
-                }
-                verticalDivider(height: 30)
-                Button("Create a support ticket"){
-                    openLink(urlString: "https://discord.gg/kQKdvjTVqh")
-                }
-            }
-            .frame(maxWidth: 400, alignment: .leading)
+            .padding(24)
+            .frame(maxWidth: 920, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .padding([.leading, .bottom])
-        .frame(maxWidth: 400, alignment: .leading)
-
-        Spacer()
-
-        VStack{
-            Label("Please consult resources before creating an issue — you may find a solution there.", systemImage: "exclamationmark.bubble")
-                .font(.footnote)
-                .frame(maxWidth: 400, alignment: .leading)
-                .padding([.leading, .bottom])
-        }
+        .background(Color(nsColor: .windowBackgroundColor))
+        .navigationTitle("Support")
         .task(priority: .background) {
-            // Set rich presence using SwordRPC
             discordRPC.setPresence({
                 var presence = RichPresence()
-                presence.details = "Looking for help"
-                presence.state = "Viewing Support"
+                presence.details = "Finding Kraken support"
+                presence.state = "Support"
                 presence.timestamps.start = .now
                 presence.assets.largeImage = "macos_512x512_2x"
                 return presence
             }())
         }
-        .navigationTitle("Support")
     }
 }
 
-public class SupportWindowController: NSWindowController {
+private struct SupportResource: Identifiable {
+    let title: String
+    let detail: String
+    let action: String
+    let symbol: String
+    let tint: Color
+    let urlString: String
+
+    var id: String { title }
+}
+
+private struct SupportResourceCard: View {
+    let resource: SupportResource
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Image(systemName: resource.symbol)
+                .font(.title2)
+                .foregroundStyle(resource.tint)
+                .frame(width: 42, height: 42)
+                .background(resource.tint.opacity(0.10), in: .rect(cornerRadius: 12))
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(resource.title)
+                    .font(.headline)
+                Text(resource.detail)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            if let destination = URL(string: resource.urlString) {
+                Link(destination: destination) {
+                    Label(resource.action, systemImage: "arrow.up.right")
+                        .font(.callout.weight(.medium))
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 176, alignment: .leading)
+        .padding(18)
+        .background(.regularMaterial)
+        .overlay {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        }
+        .clipShape(.rect(cornerRadius: 16, style: .continuous))
+    }
+}
+
+public final class SupportWindowController: NSWindowController {
     static var shared: SupportWindowController?
 
     convenience init() {
-        let supportView = SupportView()
-        let hosting = NSHostingController(rootView: supportView)
-
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
-            styleMask: [
-                .titled,
-                .closable,
-                .fullSizeContentView
-            ],
+            contentRect: NSRect(x: 0, y: 0, width: 740, height: 520),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
-
-        window.titlebarAppearsTransparent = true
-        window.isMovableByWindowBackground = true
-        window.titleVisibility = .hidden
-
-        if let zoomButton = window.standardWindowButton(.zoomButton) {
-            zoomButton.isEnabled = false
-        }
-
-        let visualEffectView = NSVisualEffectView()
-        visualEffectView.material = .sidebar
-        visualEffectView.blendingMode = .behindWindow
-        visualEffectView.state = .active
-        visualEffectView.translatesAutoresizingMaskIntoConstraints = false
-        visualEffectView.addSubview(hosting.view)
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
-
-        NSLayoutConstraint.activate([
-            hosting.view.leadingAnchor.constraint(equalTo: visualEffectView.leadingAnchor),
-            hosting.view.trailingAnchor.constraint(equalTo: visualEffectView.trailingAnchor),
-            hosting.view.topAnchor.constraint(equalTo: visualEffectView.topAnchor, constant: 28),
-            hosting.view.bottomAnchor.constraint(equalTo: visualEffectView.bottomAnchor)
-        ])
-
-        window.contentView = visualEffectView
+        window.title = "Kraken Support"
+        window.minSize = NSSize(width: 560, height: 420)
+        window.contentViewController = NSHostingController(rootView: SupportView())
         window.center()
         self.init(window: window)
     }
@@ -141,18 +163,6 @@ public class SupportWindowController: NSWindowController {
             NSApp.activate(ignoringOtherApps: true)
         }
     }
-}
-
-private func openLink(urlString: String) {
-    if let url = URL(string: urlString) {
-        NSWorkspace.shared.open(url)
-    }
-}
-
-@ViewBuilder
-private func verticalDivider(height: CGFloat) -> some View {
-    Divider()
-        .frame(width: 1, height: height)
 }
 
 #Preview {

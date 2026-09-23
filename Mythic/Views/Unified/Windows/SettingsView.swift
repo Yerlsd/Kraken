@@ -62,7 +62,6 @@ struct SettingsView: View {
 }
 
 private struct GeneralSettings: View {
-    @State private var resetAlert = false
     @State private var resetSettingsAlert = false
 
     var body: some View {
@@ -88,28 +87,7 @@ private struct GeneralSettings: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("This removes saved preferences but leaves your games and containers alone.")
-            }
-
-            Button("Reset Kraken completely", systemImage: "trash") {
-                resetAlert = true
-            }
-            .foregroundStyle(.red)
-            .alert("Reset Kraken completely?", isPresented: $resetAlert) {
-                Button("Erase Everything", role: .destructive) {
-                    if let bundleIdentifier = Bundle.main.bundleIdentifier {
-                        UserDefaults.standard.removePersistentDomain(forName: bundleIdentifier)
-                    }
-                    if let appHome = Bundle.appHome {
-                        try? FileManager.default.removeItem(at: appHome)
-                    }
-                    if let containersDirectory = Wine.containersDirectory {
-                        try? FileManager.default.removeItem(at: containersDirectory)
-                    }
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("This erases Kraken's persistent settings and containers.")
+                Text("This removes Kraken's saved preferences. Your game files and containers stay in place.")
             }
         } header: {
             Text("Reset")
@@ -141,7 +119,7 @@ private struct LibrarySettings: View {
 }
 
 private struct DownloadSettings: View {
-    @AppStorage("installBaseURL") private var installBaseURL: URL = Bundle.appGames!
+    @AppStorage("installBaseURL") private var installBaseURL: URL = Bundle.defaultGamesDirectory
     @State private var importerPresented = false
 
     var body: some View {
@@ -163,7 +141,9 @@ private struct DownloadSettings: View {
                 Spacer()
                 Button("Choose Folder…") { importerPresented = true }
                     .buttonStyle(.borderedProminent)
-                Button("Reset") { installBaseURL = Bundle.appGames! }
+                Button("Reset") {
+                    installBaseURL = Bundle.defaultGamesDirectory
+                }
             }
             .fileImporter(isPresented: $importerPresented, allowedContentTypes: [.folder]) { result in
                 if case .success(let url) = result {

@@ -38,23 +38,25 @@ struct GameCard: View {
             }
             .clipShape(.rect(topLeadingRadius: 16, topTrailingRadius: 16))
 
-            HStack(alignment: .center, spacing: 10) {
+            VStack(alignment: .leading, spacing: 9) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(game.title)
                         .font(.headline)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(game.lastLaunched == nil ? "Not played yet" : "Recently played")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-
-                Spacer(minLength: 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 GameCard.ButtonsView(game: $game)
                     .labelStyle(.iconOnly)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(11)
+            .padding(12)
             .background(.regularMaterial)
         }
         .clipShape(.rect(cornerRadius: 16))

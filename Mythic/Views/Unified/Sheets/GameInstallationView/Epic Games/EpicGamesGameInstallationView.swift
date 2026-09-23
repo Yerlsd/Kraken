@@ -16,7 +16,7 @@ struct EpicGamesGameInstallationView: View {
     @Binding var isPresented: Bool
 
     @Bindable private var operationManager: GameOperationManager = .shared
-    @AppStorage("installBaseURL") private var baseURL: URL = Bundle.appGames!
+    @AppStorage("installBaseURL") private var baseURL: URL = Bundle.defaultGamesDirectory
 
     @State private var isImageEmpty: Bool = true
 

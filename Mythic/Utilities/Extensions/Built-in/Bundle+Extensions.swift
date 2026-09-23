@@ -66,13 +66,10 @@ extension Bundle {
         return nil
     }
     
-    /**
-     A directory within games where Mythic will download to by default.
-     (Force-unwrappable)
-     */
+    /// A per-app folder for newly installed games.
     static var appGames: URL? {
         if let games = FileLocations.globalGames {
-            let appGamesURL = games.appending(path: "Mythic")
+            let appGamesURL = games.appending(path: "Kraken")
             do {
                 try FileManager.default.createDirectory(
                     at: appGamesURL,
@@ -83,7 +80,12 @@ extension Bundle {
                 Logger.file.error("Unable to get games directory: \(error.localizedDescription)")
             }
         }
-        
+
         return nil
+    }
+
+    /// A safe default when the shared Games folder cannot be created or accessed.
+    static var defaultGamesDirectory: URL {
+        appGames ?? FileManager.default.homeDirectoryForCurrentUser.appending(path: "Games")
     }
 }
