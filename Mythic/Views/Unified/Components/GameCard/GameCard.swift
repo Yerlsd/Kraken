@@ -1,100 +1,85 @@
-//
-//  GameCard.swift
-//  Mythic
-//
-//  Created by vapidinfinity (esi) on 5/3/2024.
-//
-
-// Copyright © 2023-2025 vapidinfinity
-
 import SwiftUI
-import SwiftyJSON
-import Glur
-import OSLog
 
+/// Kraken's reusable library tile.
+/// Artwork stays dominant while controls live in a compact material footer.
 struct GameCard: View {
     @Binding var game: Game
 
-    @State private var isImageEmpty: Bool = true
-    @State private var isImageEmptyPreMacOSTahoe: Bool = true
+    @State private var isImageEmpty = true
+    @State private var isHovering = false
+    @AppStorage("libraryArtworkGlow") private var artworkGlow = true
 
     var body: some View {
-        GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
-            .aspectRatio(4 / 5, contentMode: .fit)
-            .clipShape(.rect(cornerRadius: 16))
-            .overlay(alignment: .bottom) {
-                VStack(alignment: .leading, spacing: 7) {
-                    GameCard.TitleAndInformationView(
-                        game: $game,
-                        font: .headline,
-                        withSubscriptedInfo: true
-                    )
-                    .lineLimit(2)
-                    .layoutPriority(1)
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                GameImageCard(game: game, url: game.verticalImageURL, isImageEmpty: $isImageEmpty)
+                    .aspectRatio(4 / 5, contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
 
-                    GameCard.ButtonsView(game: $game)
-                        .clipShape(.capsule)
-                        .progressViewStyle(.circular)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .onChange(of: isImageEmpty) {
-                    if #unavailable(macOS 26.0) {
-                        isImageEmptyPreMacOSTahoe = $1
-                    }
-                }
-                .conditionalTransform(if: !isImageEmptyPreMacOSTahoe) { view in
-                    view.foregroundStyle(.white)
-                }
-                .customTransform { view in
-                    if #available(macOS 26.0, *) {
-                        view
-                            .glassEffect(in: .rect(cornerRadius: 14.0))
-                            .padding(6)
-                    } else {
-                        view
-                            .menuStyle(.borderlessButton)
-                            .menuIndicator(.hidden)
-                            .padding(.bottom, 8)
-                    }
-                }
-            }
-            .overlay(alignment: .top) {
-                if game.isUpdateAvailable == true {
-                    Label("Update available", systemImage: "arrow.trianglehead.2.clockwise.rotate.90")
-                        .font(.caption)
+                HStack(spacing: 6) {
+                    Text(game.storefront?.description ?? "Local")
+                        .font(.caption2.weight(.semibold))
+                        .textCase(.uppercase)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)
-                        .customTransform { view in
-                            if #available(macOS 26.0, *) {
-                                view.glassEffect(in: .capsule)
-                            } else {
-                                view.background(in: .capsule)
-                            }
-                        }
-                        .padding(8)
-                }
-            }
-    }
-}
+                        .background(.ultraThinMaterial, in: .capsule)
 
-/// ViewModifier that enables views to have a fade in effect.
-struct FadeInModifier: ViewModifier {
-    @State private var opacity: Double = 0
+                    Spacer()
 
-    func body(content: Content) -> some View {
-        content
-            .opacity(opacity)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    opacity = 1
+                    if game.isFavourited {
+                        Image(systemName: "star.fill")
+                            .font(.caption.weight(.bold))
+                            .padding(7)
+                            .background(.ultraThinMaterial, in: .circle)
+                    }
                 }
+                .padding(10)
             }
+            .clipShape(.rect(topLeadingRadius: 16, topTrailingRadius: 16))
+
+            VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(game.title)
+                        .font(.headline)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(game.lastLaunched == nil ? "Not played yet" : "Recently played")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                GameCard.ButtonsView(game: $game)
+                    .labelStyle(.iconOnly)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(12)
+            .background(.regularMaterial)
+        }
+        .clipShape(.rect(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(.quaternary, lineWidth: 1)
+        }
+        .shadow(
+            color: .black.opacity(artworkGlow ? (isHovering ? 0.16 : 0.08) : 0),
+            radius: artworkGlow ? (isHovering ? 14 : 8) : 0,
+            y: artworkGlow ? (isHovering ? 7 : 4) : 0
+        )
+        .scaleEffect(isHovering ? 1.012 : 1)
+        .animation(.easeOut(duration: 0.16), value: isHovering)
+        .onHover { isHovering = $0 }
+        .contextMenu {
+            GameCard.MenuView(game: $game)
+        }
     }
 }
 
 #Preview {
     GameCard(game: .constant(placeholderGame(type: Game.self)))
+        .frame(width: 230)
         .environmentObject(NetworkMonitor.shared)
 }

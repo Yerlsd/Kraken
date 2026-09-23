@@ -204,7 +204,7 @@ extension Engine {
             if userInitiated {
                 let alert: NSAlert = .init()
                 alert.alertStyle = .critical
-                alert.messageText = String(localized: "Unable to check for Mythic Engine updates.")
+                alert.messageText = String(localized: "Unable to check for Kraken Engine updates.")
                 alert.informativeText = error.localizedDescription
                 alert.addButton(withTitle: String(localized: "OK"))
                 
@@ -218,7 +218,7 @@ extension Engine {
             if userInitiated {
                 let alert: NSAlert = .init()
                 alert.alertStyle = .informational
-                alert.messageText = String(localized: "No Mythic Engine updates available.")
+                alert.messageText = String(localized: "No Kraken Engine updates available.")
                 alert.informativeText = String(localized: "You're currently on the latest version, \(await installedVersion?.description ?? String(localized: "an unknown version")).")
                 alert.addButton(withTitle: String(localized: "OK"))
                 
@@ -228,12 +228,12 @@ extension Engine {
         }
         
         let latestVersion = (try? await getLatestCompatibleRelease())?.version.description ?? String(localized: "Unknown")
-        let currentVersion = await installedVersion?.description ?? String(localized: "an unknown version", comment: "Of Mythic Engine")
+        let currentVersion = await installedVersion?.description ?? String(localized: "an unknown version", comment: "Of Kraken Engine")
         
         let updateAlert: NSAlert = .init()
-        updateAlert.messageText = String(localized: "Mythic Engine update available.")
+        updateAlert.messageText = String(localized: "Kraken Engine update available.")
         updateAlert.informativeText = String(localized: """
-            A new version of Mythic Engine (\(latestVersion)) has released.
+            A new version of Kraken Engine (\(latestVersion)) has released.
             You're currently using \(currentVersion).
             """)
         updateAlert.addButton(withTitle: String(localized: "Update"))
@@ -244,7 +244,7 @@ extension Engine {
         
         let confirmationAlert: NSAlert = .init()
         confirmationAlert.messageText = String(localized: "Are you sure you want to update now?")
-        confirmationAlert.informativeText = String(localized: "This will remove the current version of Mythic Engine.") + String(localized: "The latest version will be installed the next time you attempt to launch a Windows® game.")
+        confirmationAlert.informativeText = String(localized: "This will remove the current version of Kraken Engine 2.") + String(localized: "The latest version will be installed the next time you attempt to launch a Windows® game.")
         confirmationAlert.addButton(withTitle: String(localized: "Update"))
         confirmationAlert.addButton(withTitle: String(localized: "Cancel"))
         
@@ -256,7 +256,7 @@ extension Engine {
             
             let successAlert: NSAlert = .init()
             successAlert.alertStyle = .informational
-            successAlert.messageText = String(localized: "Successfully removed Mythic Engine.")
+            successAlert.messageText = String(localized: "Successfully removed Kraken Engine 2.")
             successAlert.informativeText = String(localized: "The latest version will be installed the next time you attempt to launch a Windows® game.")
             successAlert.addButton(withTitle: String(localized: "OK"))
             
@@ -264,7 +264,7 @@ extension Engine {
         } catch {
             let errorAlert: NSAlert = .init()
             errorAlert.alertStyle = .critical
-            errorAlert.messageText = String(localized: "Unable to remove Mythic Engine.")
+            errorAlert.messageText = String(localized: "Unable to remove Kraken Engine 2.")
             errorAlert.informativeText = error.localizedDescription
             errorAlert.addButton(withTitle: String(localized: "OK"))
             

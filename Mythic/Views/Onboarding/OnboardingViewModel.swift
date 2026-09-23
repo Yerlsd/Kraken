@@ -30,7 +30,7 @@ extension OnboardingView {
             case signin = "Sign In"
             case greetings = "Greetings"
             case rosetta = "Rosetta Installation"
-            case engine = "Mythic Engine Installation"
+            case engine = "Kraken Engine Installation"
             case defaultContainerSetup = "Default Container Setup"
             case finished = "Finished"
         }

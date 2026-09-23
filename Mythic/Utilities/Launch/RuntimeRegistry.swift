@@ -165,7 +165,7 @@ struct MythicEngineRuntimeProvider: RuntimeProvider {
         .init(
             id: .mythicEngine,
             family: .mythicEngine,
-            displayName: "Mythic Engine",
+            displayName: RuntimeID.mythicEngine.displayName,
             technicalName: "Engine 2 · Legacy",
             capabilities: [.providesDXVK, .providesWineD3D],
             baseDirectory: rootDirectory

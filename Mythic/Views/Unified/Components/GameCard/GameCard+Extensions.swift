@@ -66,9 +66,9 @@ extension GameCard {
                     .alert(isPresented: $isLaunchErrorAlertPresented) {
                         if launchError is Engine.NotInstalledError {
                             return Alert(
-                                title: Text("Mythic Engine is not installed."),
+                                title: Text("Kraken Engine 2 is not installed."),
                                 message: Text("""
-                                    Mythic Engine is required to launch this game.
+                                    Kraken Engine 2 is required to launch this game.
                                     Would you like to install it now?
                                     """),
                                 primaryButton: .default(.init("Install")) {
@@ -334,7 +334,6 @@ extension GameCard {
                 }
                 .sheet(isPresented: $isGameSettingsSheetPresented) {
                     GameSettingsView(game: $game, isPresented: $isGameSettingsSheetPresented)
-                        .frame(width: 1000, height: 760)
                 }
                 .customTransform { view in
                     if #unavailable(macOS 26.0) {

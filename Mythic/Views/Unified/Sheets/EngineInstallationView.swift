@@ -24,7 +24,7 @@ struct EngineInstallationView: View { // similar to RosettaInstallationView
     
     var body: some View {
         VStack {
-            Text("Install Mythic Engine")
+            Text("Install Kraken Engine 2")
                 .font(.title.bold())
                 .padding(.bottom)
             
@@ -83,11 +83,11 @@ extension EngineInstallationView {
         var body: some View {
             Group {
                 if downloadFractionCompleted < 1.0 {
-                    Text("Downloading Mythic Engine...")
+                    Text("Downloading Kraken Engine 2…")
                     ProgressView(value: downloadFractionCompleted)
                         .progressViewStyle(.linear)
                 } else {
-                    Text("Installing Mythic Engine...")
+                    Text("Installing Kraken Engine 2…")
                     ProgressView(value: installFractionCompleted)
                         .progressViewStyle(.linear)
                 }
@@ -125,7 +125,7 @@ extension EngineInstallationView {
                 }
             }
             .alert(
-                "Unable to install Mythic Engine.",
+                "Unable to install Kraken Engine 2.",
                 isPresented: $isInstallationErrorAlertPresented,
                 presenting: installationError
             ) { _ in
@@ -150,7 +150,7 @@ extension EngineInstallationView {
         
         var body: some View {
             ContentUnavailableView(
-                "Mythic Engine is installed.",
+                "Kraken Engine 2 is installed.",
                 systemImage: "checkmark"
             )
             .task {

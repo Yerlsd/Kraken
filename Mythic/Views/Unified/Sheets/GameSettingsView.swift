@@ -1,428 +1,86 @@
-// where the hell is the comment
-
 import SwiftUI
+import AppKit
 import SwordRPC
-import OSLog
 import Darwin
-import Glur
 
-// FIXME: refactor: warning ‼️ below code may need a cleanup
+/// Per-game settings are deliberately presented as a native macOS workspace.
+/// The sidebar separates the common actions from compatibility tuning so the
+/// screen remains readable at both laptop and large-window sizes.
 struct GameSettingsView: View {
     @Binding var game: Game
     @Binding var isPresented: Bool
 
     @Bindable private var operationManager: GameOperationManager = .shared
 
+    private enum Section: String, CaseIterable, Identifiable, Hashable {
+        case overview = "Overview"
+        case launch = "Launch"
+        case files = "Files"
+        case compatibility = "Compatibility"
+        case graphics = "Graphics"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .overview: "info.circle"
+            case .launch: "play.circle"
+            case .files: "folder"
+            case .compatibility: "shippingbox"
+            case .graphics: "display"
+            }
+        }
+    }
+
+    @State private var selection: Section = .overview
     @State private var movingError: Error?
     @State private var isMovingErrorAlertPresented = false
     @State private var isMovingFileImporterPresented = false
-
-    @State private var typingArgument = String()
+    @State private var typingArgument = ""
     @State private var isImageEmpty = true
-
-    @State private var isFileSectionExpanded = true
-    @State private var isContainerSectionExpanded = true
-    @State private var isGameSectionExpanded = true
-    @State private var isCompatibilityOverrideExpanded = false
-
     @State private var selectedRuntimeID: RuntimeID = .mythicEngine
     @State private var selectedGraphicsBackend: GraphicsBackend = .automatic
     @State private var storagePreflightResult: StoragePreflightResult?
+    @State private var isCompatibilityOverrideEnabled = false
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(spacing: 14) {
-                    ZStack(alignment: .bottomLeading) {
-                        GameImageCard(url: game.horizontalImageURL, isImageEmpty: $isImageEmpty)
-                            .aspectRatio(16 / 9, contentMode: .fill)
-                            .frame(
-                                width: geometry.size.width,
-                                height: min(270, geometry.size.height * 0.42)
-                            )
-                            .clipShape(.rect(cornerRadius: 16))
-                            .glur(radius: 12, offset: 0.6, interpolation: 0.6)
-
-                        HStack {
-                            if isImageEmpty && game.isFallbackImageAvailable {
-                                GameImageCard.FallbackGameImageCard(game: .constant(game))
-                                    .frame(width: 58, height: 58)
-                            }
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                GameCard.TitleAndInformationView(game: $game, withSubscriptedInfo: false)
-                                    .lineLimit(1)
-
-                                GameCard.ButtonsView(game: $game, withLabel: true)
-                                    .clipShape(.capsule)
-                            }
-                        }
-                        .padding(16)
-                        .conditionalTransform(if: !isImageEmpty) { view in
-                            view.foregroundStyle(.white)
-                        }
-                    }
-
-                    Form {
-                        Section("Options", isExpanded: $isGameSectionExpanded) {
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Launch options")
-                                    Text(
-                                        "Special instructions passed to the game when it starts. "
-                                        + "Most people should leave these alone unless a game "
-                                        + "or compatibility guide tells you to add one."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                    if !game.launchArguments.isEmpty {
-                                        ScrollView(.horizontal) {
-                                            HStack {
-                                                ForEach(game.launchArguments, id: \.self) { argument in
-                                                    ArgumentItem(
-                                                        game: $game,
-                                                        launchArguments: $game.launchArguments,
-                                                        argument: argument
-                                                    )
-                                                }
-                                            }
-                                        }
-                                        .scrollIndicators(.never)
-                                    }
-                                }
-
-                                Spacer()
-
-                                TextField("Add launch option", text: Binding(
-                                    get: { typingArgument },
-                                    set: { newValue in
-                                        if (0...1).contains(typingArgument.count) {
-                                            withAnimation { typingArgument = newValue }
-                                        } else {
-                                            typingArgument = newValue
-                                        }
-                                    }
-                                ))
-                                .onSubmit(submitLaunchArgument)
-
-                                if !typingArgument.isEmpty {
-                                    Button("", systemImage: "return") {
-                                        submitLaunchArgument()
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("Check game files")
-                                    Text(
-                                        "Checks whether the installed game files are intact. "
-                                        + "Useful when a game is crashing, missing files, "
-                                        + "or behaving unexpectedly."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                    if let currentOperation = operationManager.queue.first,
-                                       case .repair = currentOperation.type,
-                                       currentOperation.game == game {
-                                        ProgressView()
-                                            .progressViewStyle(.linear)
-                                    }
-                                }
-
-                                Spacer()
-                                GameCard.Buttons.VerificationButton(game: $game, withLabel: true)
-                            }
-                        }
-
-                        Section("File", isExpanded: $isFileSectionExpanded) {
-                            HStack {
-                                Text("Move \"\(game.title)\"")
-                                Spacer()
-
-                                if operationManager.queue.contains(where: { $0.game == game && $0.type == .move }) {
-                                    ProgressView()
-                                        .controlSize(.small)
-                                } else {
-                                    Button("Move...") {
-                                        isMovingFileImporterPresented = true
-                                    }
-                                    .disabled(operationManager.queue.first?.game == game)
-                                    .fileImporter(
-                                        isPresented: $isMovingFileImporterPresented,
-                                        allowedContentTypes: [.folder],
-                                        allowsMultipleSelection: false
-                                    ) { result in
-                                        switch result {
-                                        case .success(let success):
-                                            guard let newLocation = success.first else { return }
-                                            Task { @MainActor in
-                                                do {
-                                                    try await game.move(to: newLocation)
-                                                } catch {
-                                                    movingError = error
-                                                    isMovingErrorAlertPresented = true
-                                                }
-                                            }
-                                        case .failure(let failure):
-                                            movingError = failure
-                                            isMovingErrorAlertPresented = true
-                                        }
-                                    }
-                                    .alert(
-                                        "Unable to move \"\(game.title)\".",
-                                        isPresented: $isMovingErrorAlertPresented,
-                                        presenting: movingError
-                                    ) { _ in
-                                        if #available(macOS 26.0, *) {
-                                            Button("OK", role: .close) { isPresented = false }
-                                        } else {
-                                            Button("OK", role: .cancel) { isPresented = false }
-                                        }
-                                    } message: { error in
-                                        Text(error?.localizedDescription ?? "Unknown error.")
-                                    }
-                                }
-                            }
-
-                            if case .installed(let location, _) = game.installationState {
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text("Location", comment: "Game Location")
-                                        Text(location.prettyPath)
-                                            .foregroundStyle(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Button("Show in Finder") {
-                                        NSWorkspace.shared.activateFileViewerSelecting([location])
-                                    }
-                                }
-
-                                if let result = storagePreflightResult {
-                                    switch result.readiness {
-                                    case .ready:
-                                        HStack {
-                                            Image(systemName: "checkmark.seal.fill")
-                                                .foregroundStyle(.green)
-                                            Text("Storage ready (\(result.totalFilesChecked) assets verified locally)")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    case let .materializationRequired(count, bytes):
-                                        VStack(alignment: .leading, spacing: 6) {
-                                            HStack(alignment: .top, spacing: 8) {
-                                                Image(systemName: "exclamationmark.triangle.fill")
-                                                    .foregroundStyle(.orange)
-                                                    .font(.headline)
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text("iCloud Offloaded Assets Detected (\(count) files)")
-                                                        .font(.subheadline)
-                                                        .bold()
-                                                    Text("\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) are currently dataless stubs. Launching without downloading will cause severe loading delays.")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
-                                                }
-                                            }
-                                            Button("Download Game Assets Now") {
-                                                Task.detached {
-                                                    GameStoragePreflight.materializeDatalessFiles(in: location)
-                                                }
-                                            }
-                                            .controlSize(.small)
-                                        }
-                                        .padding(8)
-                                        .background(Color.orange.opacity(0.12))
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-
-                                    case .cloudLocationWarning:
-                                        HStack(alignment: .top, spacing: 8) {
-                                            Image(systemName: "icloud.and.arrow.down")
-                                                .foregroundStyle(.blue)
-                                                .font(.headline)
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text("iCloud-Managed Directory Notice")
-                                                    .font(.subheadline)
-                                                    .bold()
-                                                Text("This game is stored in an iCloud folder. Under low disk space, macOS may offload assets. Moving to ~/Games or /Users/Shared is recommended.")
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        .padding(8)
-                                        .background(Color.blue.opacity(0.12))
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    }
-                                }
-                            }
-                        }
-
-                        if case .installed(_, let platform) = game.installationState,
-                           case .windows = platform {
-                            Section("Windows compatibility", isExpanded: $isContainerSectionExpanded) {
-                                HStack(alignment: .center) {
-                                    VStack(alignment: .leading, spacing: 3) {
-                                        Label(
-                                            game.launchProfile.runtimeOverride == nil ? "Automatic" : "Manual",
-                                            systemImage: game.launchProfile.runtimeOverride == nil
-                                                ? "wand.and.stars"
-                                                : "slider.horizontal.3"
-                                        )
-                                        .font(.headline)
-
-                                        Text(
-                                            game.launchProfile.runtimeOverride == nil
-                                                ? "Managed by Kraken"
-                                                : "Manual compatibility override enabled"
-                                        )
-                                        .foregroundStyle(.secondary)
-                                    }
-
-                                    Spacer()
-
-                                    Image(
-                                        systemName: game.launchProfile.runtimeOverride == nil
-                                            ? "checkmark.circle.fill"
-                                            : "gearshape.fill"
-                                    )
-                                    .foregroundStyle(.secondary)
-                                }
-
-                                Text(
-                                    game.launchProfile.runtimeOverride == nil
-                                        ? "Kraken uses the game's current validated compatibility setup."
-                                        : "The selected runtime and compatible container are used for this game."
-                                )
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                                DisclosureGroup(
-                                    "Compatibility override",
-                                    isExpanded: $isCompatibilityOverrideExpanded
-                                ) {
-                                    Toggle(
-                                        "Use a manual compatibility runtime",
-                                        isOn: manualRuntimeOverride
-                                    )
-
-                                    Picker("Runtime", selection: $selectedRuntimeID) {
-                                        ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
-                                            HStack(spacing: 6) {
-                                                Text(runtime.name)
-                                                Text(runtime.id == .wine11 ? "Engine 3" : (runtime.id == .gptk ? "GPTK" : "Engine 2"))
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                            .tag(runtime.id)
-                                        }
-                                    }
-                                    .disabled(game.launchProfile.runtimeOverride == nil)
-                                    .onChange(of: selectedRuntimeID) { oldValue, newValue in
-                                        guard game.launchProfile.runtimeOverride != nil else { return }
-                                        guard Engine.isRuntimeInstalled(newValue), oldValue != newValue else {
-                                            selectedRuntimeID = oldValue
-                                            return
-                                        }
-
-                                        var profile = game.launchProfile
-                                        profile.selectRuntime(newValue)
-                                        profile.container = compatibleContainerURL(for: newValue)
-                                            .map(ContainerReference.init(url:))
-                                        game.launchProfile = profile
-                                    }
-
-                                    ContainerSettingsView(
-                                        selectedContainerURL: $game.containerURL,
-                                        withPicker: true,
-                                        selectedRuntimeID: game.launchProfile.effectiveRuntimeID
-                                    )
-                                    .disabled(game.launchProfile.runtimeOverride == nil)
-
-                                    Picker("Graphics", selection: $selectedGraphicsBackend) {
-                                        Text(GraphicsBackend.automatic.displayName)
-                                            .tag(GraphicsBackend.automatic)
-
-                                        ForEach(GraphicsBackend.allCases.filter { $0 != .automatic }, id: \.self) { backend in
-                                            HStack(spacing: 6) {
-                                                Text(backend.displayName)
-                                                if !availableGraphicsBackends.contains(backend) {
-                                                    Text("Unavailable")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.secondary)
-                                                }
-                                            }
-                                            .tag(backend)
-                                        }
-                                    }
-                                    .disabled(game.launchProfile.runtimeOverride == nil)
-                                    .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
-                                        guard oldValue != newValue else { return }
-
-                                        if newValue != .automatic && !availableGraphicsBackends.contains(newValue) {
-                                            selectedGraphicsBackend = oldValue
-                                            return
-                                        }
-
-                                        var profile = game.launchProfile
-                                        profile.selectGraphicsBackend(newValue)
-                                        game.launchProfile = profile
-                                    }
-
-                                    Text(
-                                        selectedGraphicsBackend == .automatic
-                                            ? "Kraken selects an available graphics backend automatically."
-                                            : availableGraphicsBackends.contains(selectedGraphicsBackend)
-                                                ? "Kraken will use the selected backend for this game."
-                                                : "The selected backend is unavailable for the current runtime and launch will fail until it is changed."
-                                    )
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Picker("Reported GPU Memory", selection: reportedMemorySelection) {
-                                            let autoMB = ReportedGPUMemoryResolver.shared.automaticMegabytes()
-                                            Text("Automatic (\(autoMB) MB)").tag(0)
-                                            Text("1024 MB (1 GB)").tag(1024)
-                                            Text("2048 MB (2 GB)").tag(2048)
-                                            Text("4095 MB (4 GB)").tag(4095)
-                                            Text("8192 MB (8 GB)").tag(8192)
-                                            Text("16384 MB (16 GB)").tag(16384)
-                                        }
-
-                                        Text("Adjusting Reported GPU Memory changes the VRAM size reported to Windows games. It does not reserve physical RAM, but misconfiguration can cause crashes or high memory pressure.")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .formStyle(.grouped)
-                }
+        NavigationSplitView {
+            List(Section.allCases, selection: $selection) { section in
+                Label(section.rawValue, systemImage: section.icon)
+                    .tag(section)
             }
+            .listStyle(.sidebar)
+            .navigationTitle("Game Settings")
+            .safeAreaInset(edge: .bottom) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(game.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(game.storefront?.description ?? "Local")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(.bar)
+            }
+        } detail: {
+            detailView
+                .navigationTitle(selection.rawValue)
+                .toolbar {
+                    ToolbarItem(placement: .automatic) {
+                        GameCard.ButtonsView(game: $game, withLabel: true)
+                    }
+                }
         }
-        .ignoresSafeArea(edges: .top)
+        .frame(minWidth: 780, minHeight: 560)
         .task {
             selectedRuntimeID = game.launchProfile.effectiveRuntimeID
             selectedGraphicsBackend = game.launchProfile.graphicsBackend
+            isCompatibilityOverrideEnabled = game.launchProfile.runtimeOverride != nil
             ensureCompatibleContainer()
-            if case .installed(let location, _) = game.installationState {
-                Task.detached(priority: .userInitiated) {
-                    let result = GameStoragePreflight.inspect(at: location, maxFilesToScan: 5_000)
-                    await MainActor.run {
-                        storagePreflightResult = result
-                    }
-                }
-            }
+            inspectStorage()
+            setDiscordPresence()
         }
         .onChange(of: game.launchProfile.effectiveRuntimeID) { _, newValue in
             selectedRuntimeID = newValue
@@ -436,83 +94,440 @@ struct GameSettingsView: View {
         .onChange(of: game.launchProfile.graphicsBackend) { _, newValue in
             selectedGraphicsBackend = newValue
         }
-
-        bottomBar
+        .safeAreaInset(edge: .bottom) {
+            bottomBar
+        }
     }
-}
 
-private extension GameSettingsView {
-    var availableGraphicsBackends: Set<GraphicsBackend> {
+    @ViewBuilder
+    private var detailView: some View {
+        switch selection {
+        case .overview: overviewView
+        case .launch: launchView
+        case .files: filesView
+        case .compatibility: compatibilityView
+        case .graphics: graphicsView
+        }
+    }
+
+    private var overviewView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                hero
+                HStack(spacing: 12) {
+                    statusCard(title: "Storefront", value: game.storefront?.description ?? "Local", icon: "bag")
+                    statusCard(title: "Runtime", value: game.launchProfile.effectiveRuntimeID.displayName, icon: "shippingbox")
+                    statusCard(title: "Mode", value: isCompatibilityOverrideEnabled ? "Manual" : "Automatic", icon: isCompatibilityOverrideEnabled ? "slider.horizontal.3" : "wand.and.stars")
+                }
+                sectionCard(title: "Quick actions", icon: "bolt.fill") {
+                    HStack(spacing: 10) {
+                        GameCard.Buttons.VerificationButton(game: $game, withLabel: true)
+                        Button("Launch Settings") { selection = .launch }
+                        if case .installed = game.installationState {
+                            Button("Open Files") { selection = .files }
+                        }
+                        if case .installed(_, let platform) = game.installationState,
+                           case .windows = platform {
+                            Button("Compatibility") { selection = .compatibility }
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+                if case .installed(_, let platform) = game.installationState,
+                   case .windows = platform {
+                    compatibilitySummary
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 980, alignment: .leading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var launchView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                pageIntro(title: "Launch", subtitle: "Control the arguments and launch-time checks Kraken applies to this game.")
+                sectionCard(title: "Launch options", icon: "terminal") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Special instructions passed to the game when it starts. Most people should leave these alone unless a game or compatibility guide tells you to add one.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !game.launchArguments.isEmpty {
+                            ScrollView(.horizontal) {
+                                HStack(spacing: 8) {
+                                    ForEach(game.launchArguments, id: \.self) { argument in
+                                        ArgumentItem(game: $game, launchArguments: $game.launchArguments, argument: argument)
+                                    }
+                                }
+                            }
+                            .scrollIndicators(.never)
+                        }
+                        HStack {
+                            TextField("Add launch option", text: $typingArgument)
+                                .onSubmit(submitLaunchArgument)
+                            Button("Add") { submitLaunchArgument() }
+                                .disabled(typingArgument.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        }
+                    }
+                }
+                sectionCard(title: "Game files", icon: "checkmark.shield") {
+                    HStack(spacing: 14) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Verify installation")
+                                .font(.headline)
+                            Text("Check whether installed game files are intact.")
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        GameCard.Buttons.VerificationButton(game: $game, withLabel: true)
+                    }
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 980, alignment: .leading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var filesView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                pageIntro(title: "Files", subtitle: "Manage where the game is stored and check whether macOS has offloaded any assets.")
+                if case .installed(let location, _) = game.installationState {
+                    sectionCard(title: "Installation", icon: "folder") {
+                        VStack(alignment: .leading, spacing: 14) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Location").font(.headline)
+                                    Text(location.prettyPath)
+                                        .font(.callout)
+                                        .foregroundStyle(.secondary)
+                                        .textSelection(.enabled)
+                                }
+                                Spacer()
+                                Button("Show in Finder") {
+                                    NSWorkspace.shared.activateFileViewerSelecting([location])
+                                }
+                            }
+                            Divider()
+                            HStack {
+                                Text("Move \"\(game.title)\"")
+                                Spacer()
+                                if operationManager.queue.contains(where: { $0.game == game && $0.type == .move }) {
+                                    ProgressView().controlSize(.small)
+                                } else {
+                                    Button("Move…") { isMovingFileImporterPresented = true }
+                                        .disabled(operationManager.queue.first?.game == game)
+                                }
+                            }
+                            .fileImporter(isPresented: $isMovingFileImporterPresented, allowedContentTypes: [.folder], allowsMultipleSelection: false) { result in
+                                handleMoveResult(result)
+                            }
+                            .alert("Unable to move \"\(game.title)\".", isPresented: $isMovingErrorAlertPresented, presenting: movingError) { _ in
+                                Button("OK", role: .cancel) { }
+                            } message: { error in
+                                Text(error?.localizedDescription ?? "Unknown error.")
+                            }
+                        }
+                    }
+                    if let storagePreflightResult {
+                        storageStatusCard(storagePreflightResult, location: location)
+                    }
+                } else {
+                    sectionCard(title: "Not installed", icon: "tray") {
+                        Text("This game does not currently have an installed location managed by Kraken.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 980, alignment: .leading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var compatibilityView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                pageIntro(title: "Compatibility", subtitle: "Choose whether Kraken manages the Windows runtime automatically or you want to override it for this game.")
+                if case .installed(_, let platform) = game.installationState,
+                   case .windows = platform {
+                    sectionCard(title: "Runtime", icon: "shippingbox") {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Toggle("Use a manual compatibility runtime", isOn: $isCompatibilityOverrideEnabled)
+                                .onChange(of: isCompatibilityOverrideEnabled) { _, enabled in
+                                    setManualRuntimeOverride(enabled)
+                                }
+                            Picker("Runtime", selection: $selectedRuntimeID) {
+                                ForEach([Runtime.mythicEngine, Runtime.gptk, Runtime.wine11]) { runtime in
+                                    Text(runtime.id.displayName).tag(runtime.id)
+                                }
+                            }
+                            .disabled(!isCompatibilityOverrideEnabled)
+                            .onChange(of: selectedRuntimeID) { oldValue, newValue in
+                                guard isCompatibilityOverrideEnabled, oldValue != newValue else { return }
+                                guard Engine.isRuntimeInstalled(newValue) else {
+                                    selectedRuntimeID = oldValue
+                                    return
+                                }
+                                var profile = game.launchProfile
+                                profile.selectRuntime(newValue)
+                                profile.container = compatibleContainerURL(for: newValue).map(ContainerReference.init(url:))
+                                game.launchProfile = profile
+                            }
+                            ContainerSettingsView(
+                                selectedContainerURL: $game.containerURL,
+                                withPicker: true,
+                                selectedRuntimeID: game.launchProfile.effectiveRuntimeID
+                            )
+                            .disabled(!isCompatibilityOverrideEnabled)
+                            Text(isCompatibilityOverrideEnabled ? "The selected runtime and compatible container are used for this game." : "Automatic mode lets Kraken choose the validated runtime and container.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                } else {
+                    sectionCard(title: "Windows compatibility", icon: "checkmark.circle") {
+                        Text("Compatibility controls become available when this game is installed as a Windows game.")
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 980, alignment: .leading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var graphicsView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                pageIntro(title: "Graphics", subtitle: "Choose the graphics backend and the VRAM amount Windows should be told the game has.")
+                sectionCard(title: "Graphics backend", icon: "display") {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Picker("Graphics", selection: $selectedGraphicsBackend) {
+                            Text(GraphicsBackend.automatic.displayName).tag(GraphicsBackend.automatic)
+                            ForEach(GraphicsBackend.allCases.filter { $0 != .automatic }, id: \.self) { backend in
+                                HStack(spacing: 6) {
+                                    Text(backend.displayName)
+                                    if !availableGraphicsBackends.contains(backend) {
+                                        Text("Unavailable")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                                .tag(backend)
+                            }
+                        }
+                        .onChange(of: selectedGraphicsBackend) { oldValue, newValue in
+                            guard oldValue != newValue else { return }
+                            if newValue != .automatic && !availableGraphicsBackends.contains(newValue) {
+                                selectedGraphicsBackend = oldValue
+                                return
+                            }
+                            var profile = game.launchProfile
+                            profile.selectGraphicsBackend(newValue)
+                            game.launchProfile = profile
+                        }
+                        Text(selectedGraphicsBackend == .automatic ? "Kraken selects an available graphics backend automatically." : "Kraken will use the selected backend for this game.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                sectionCard(title: "Reported GPU memory", icon: "memorychip") {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Picker("Reported GPU Memory", selection: reportedMemorySelection) {
+                            let autoMB = ReportedGPUMemoryResolver.shared.automaticMegabytes()
+                            Text("Automatic (\(autoMB) MB)").tag(0)
+                            Text("1024 MB (1 GB)").tag(1024)
+                            Text("2048 MB (2 GB)").tag(2048)
+                            Text("4095 MB (4 GB)").tag(4095)
+                            Text("8192 MB (8 GB)").tag(8192)
+                            Text("16384 MB (16 GB)").tag(16384)
+                        }
+                        Text("This changes the VRAM amount reported to Windows games. It does not reserve physical RAM, but an incorrect value can cause crashes or memory pressure.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(28)
+            .frame(maxWidth: 980, alignment: .leading)
+        }
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var hero: some View {
+        ZStack(alignment: .bottomLeading) {
+            GameImageCard(url: game.horizontalImageURL, isImageEmpty: $isImageEmpty)
+                .aspectRatio(2.35, contentMode: .fill)
+                .frame(maxWidth: .infinity)
+                .frame(height: 270)
+                .clipped()
+            LinearGradient(colors: [.clear, .black.opacity(0.82)], startPoint: .center, endPoint: .bottom)
+            HStack(spacing: 14) {
+                if isImageEmpty && game.isFallbackImageAvailable {
+                    GameImageCard.FallbackGameImageCard(game: .constant(game))
+                        .frame(width: 64, height: 64)
+                        .clipShape(.rect(cornerRadius: 14))
+                }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(game.title)
+                        .font(.title.bold())
+                        .lineLimit(1)
+                    GameCard.SubscriptedInfoView(game: $game)
+                        .foregroundStyle(.white.opacity(0.78))
+                }
+            }
+            .foregroundStyle(.white)
+            .padding(22)
+        }
+        .clipShape(.rect(cornerRadius: 22))
+        .overlay {
+            RoundedRectangle(cornerRadius: 22)
+                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
+    }
+
+    private var compatibilitySummary: some View {
+        sectionCard(title: "Compatibility status", icon: "checkmark.shield") {
+            HStack {
+                Image(systemName: isCompatibilityOverrideEnabled ? "slider.horizontal.3" : "wand.and.stars")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(isCompatibilityOverrideEnabled ? "Manual compatibility" : "Automatic compatibility")
+                        .font(.headline)
+                    Text(isCompatibilityOverrideEnabled ? "Runtime: \(selectedRuntimeID.displayName)" : "Kraken manages the runtime and container for this game.")
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Configure") { selection = .compatibility }
+                    .buttonStyle(.bordered)
+            }
+        }
+    }
+
+    private func statusCard(title: String, value: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Image(systemName: icon).foregroundStyle(.tint)
+            Text(title).font(.caption).foregroundStyle(.secondary)
+            Text(value).font(.headline).lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(.regularMaterial)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    private func pageIntro(title: String, subtitle: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.largeTitle.bold())
+            Text(subtitle)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func sectionCard<Content: View>(title: String, icon: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(title, systemImage: icon).font(.headline)
+            content()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+        .overlay {
+            RoundedRectangle(cornerRadius: 18).strokeBorder(.quaternary, lineWidth: 1)
+        }
+        .clipShape(.rect(cornerRadius: 18))
+    }
+
+    @ViewBuilder
+    private func storageStatusCard(_ result: StoragePreflightResult, location: URL) -> some View {
+        switch result.readiness {
+        case .ready:
+            sectionCard(title: "Storage ready", icon: "checkmark.seal.fill") {
+                Label("\(result.totalFilesChecked) assets verified locally", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+            }
+        case let .materializationRequired(count, bytes):
+            sectionCard(title: "Assets need downloading", icon: "icloud.and.arrow.down") {
+                Text("\(count) files (\(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file))) are currently dataless stubs. Launching without downloading them can cause severe loading delays.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("Download Game Assets Now") {
+                    Task.detached { GameStoragePreflight.materializeDatalessFiles(in: location) }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        case .cloudLocationWarning:
+            sectionCard(title: "iCloud-managed location", icon: "icloud") {
+                Text("macOS may offload assets from this directory when disk space is low. Moving the game to ~/Games or /Users/Shared is recommended.")
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var availableGraphicsBackends: Set<GraphicsBackend> {
         GraphicsBackendDetector.availableBackends(for: game.launchProfile.effectiveRuntimeID)
     }
 
-    func compatibleContainerURL(for runtimeID: RuntimeID) -> URL? {
+    private func compatibleContainerURL(for runtimeID: RuntimeID) -> URL? {
         Wine.containerObjects
             .filter { $0.runtimeID == runtimeID }
-            .sorted {
-                $0.name.localizedStandardCompare($1.name) == .orderedAscending
-            }
+            .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             .first?
             .url
     }
 
-    func ensureCompatibleContainer() {
-        // Don't interfere with manual runtime selection
-        guard game.launchProfile.runtimeOverride == nil else {
-            return
-        }
-
+    private func ensureCompatibleContainer() {
+        guard game.launchProfile.runtimeOverride == nil else { return }
         let runtimeID = game.launchProfile.effectiveRuntimeID
-
         guard
             let currentURL = game.launchProfile.container?.url,
             let currentContainer = try? Wine.getContainerObject(at: currentURL),
             currentContainer.runtimeID == runtimeID
         else {
             var profile = game.launchProfile
-            profile.container = compatibleContainerURL(for: runtimeID)
-                .map(ContainerReference.init(url:))
+            profile.container = compatibleContainerURL(for: runtimeID).map(ContainerReference.init(url:))
             game.launchProfile = profile
             return
         }
     }
 
-    var manualRuntimeOverride: Binding<Bool> {
-        Binding(
-            get: { game.launchProfile.runtimeOverride != nil },
-            set: { enabled in
-                var profile = game.launchProfile
-
-                if enabled {
-                    let runtimeID = profile.container.flatMap { reference in
-                        (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? profile.effectiveRuntimeID
-
-                    profile.selectRuntime(runtimeID)
-                    profile.container = compatibleContainerURL(for: runtimeID)
-                        .map(ContainerReference.init(url:))
-                } else {
-                    let automaticRuntime = profile.container.flatMap { reference in
-                        (try? Wine.getContainerObject(at: reference.url))?.runtimeID
-                    } ?? profile.effectiveRuntimeID
-
-                    profile.setDefaultRuntime(automaticRuntime)
-                    profile.clearRuntimeOverride()
-                }
-
-                game.launchProfile = profile
-            }
-        )
+    private func setManualRuntimeOverride(_ enabled: Bool) {
+        var profile = game.launchProfile
+        if enabled {
+            let runtimeID = profile.container.flatMap { reference in
+                (try? Wine.getContainerObject(at: reference.url))?.runtimeID
+            } ?? profile.effectiveRuntimeID
+            profile.selectRuntime(runtimeID)
+            profile.container = compatibleContainerURL(for: runtimeID).map(ContainerReference.init(url:))
+        } else {
+            let automaticRuntime = profile.container.flatMap { reference in
+                (try? Wine.getContainerObject(at: reference.url))?.runtimeID
+            } ?? profile.effectiveRuntimeID
+            profile.setDefaultRuntime(automaticRuntime)
+            profile.clearRuntimeOverride()
+        }
+        game.launchProfile = profile
     }
 
-    var reportedMemorySelection: Binding<Int> {
+    private var reportedMemorySelection: Binding<Int> {
         Binding(
             get: {
                 switch game.launchProfile.reportedGPUMemoryPolicy {
-                case .automatic:
-                    return 0
-                case .manual(let mb):
-                    return mb
+                case .automatic: return 0
+                case .manual(let mb): return mb
                 }
             },
             set: { newValue in
@@ -527,45 +542,64 @@ private extension GameSettingsView {
         )
     }
 
-
-    func submitLaunchArgument() {
+    private func submitLaunchArgument() {
         let cleanedArgument = typingArgument
             .trimmingCharacters(in: .illegalCharacters)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        var wordExpansion = wordexp_t() // swiftlint:disable:this identifier_name
+        defer { wordfree(&wordExpansion) }
+        guard Darwin.wordexp(cleanedArgument, &wordExpansion, 0) == 0 else { return }
+        let splitArguments: [String] = (0..<Int(wordExpansion.we_wordc))
+            .compactMap { String(cString: wordExpansion.we_wordv[$0]!) }
+        guard !cleanedArgument.isEmpty else { return }
+        guard !game.launchArguments.contains(typingArgument) else { return }
+        game.launchArguments += splitArguments
+        typingArgument = ""
+    }
 
-        var w = wordexp_t() // swiftlint:disable:this identifier_name
-        defer { wordfree(&w) }
-
-        guard Darwin.wordexp(cleanedArgument, &w, 0) == 0 else { return }
-
-        let splitArguments: [String] = (0..<Int(w.we_wordc))
-            .compactMap({ String(cString: w.we_wordv[$0]!) })
-
-        if !cleanedArgument.isEmpty,
-           !game.launchArguments.contains(typingArgument) {
-            game.launchArguments += splitArguments
-            typingArgument = .init()
+    private func handleMoveResult(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let locations):
+            guard let newLocation = locations.first else { return }
+            Task { @MainActor in
+                do {
+                    try await game.move(to: newLocation)
+                } catch {
+                    movingError = error
+                    isMovingErrorAlertPresented = true
+                }
+            }
+        case .failure(let error):
+            movingError = error
+            isMovingErrorAlertPresented = true
         }
     }
-}
 
-private extension GameSettingsView {
-    var bottomBar: some View {
-        HStack {
+    private func inspectStorage() {
+        guard case .installed(let location, _) = game.installationState else { return }
+        Task.detached(priority: .userInitiated) {
+            let result = GameStoragePreflight.inspect(at: location, maxFilesToScan: 5_000)
+            await MainActor.run { storagePreflightResult = result }
+        }
+    }
+
+    private var bottomBar: some View {
+        HStack(spacing: 10) {
             if case .installed(_, let platform) = game.installationState {
                 SubscriptedTextView(platform.description)
             }
             GameCard.SubscriptedInfoView(game: $game)
-
             Spacer()
-
             Button("Close") { isPresented = false }
-                .buttonStyle(.borderedProminent)
+                .keyboardShortcut(.cancelAction)
+                .buttonStyle(.bordered)
         }
-        .padding()
+        .padding(.horizontal, 18)
+        .padding(.vertical, 12)
+        .background(.bar)
     }
 
-    func setDiscordPresence() {
+    private func setDiscordPresence() {
         discordRPC.setPresence({
             var presence: RichPresence = .init()
             presence.details = "Configuring \"\(game.title)\""
@@ -575,36 +609,28 @@ private extension GameSettingsView {
             return presence
         }())
     }
-}
 
-extension GameSettingsView {
     struct ArgumentItem: View {
         @Binding var game: Game
         @Binding var launchArguments: [String]
-        var argument: String
-        @State var isHoveringOverArgument = false
+        let argument: String
+        @State private var isHovering = false
 
         var body: some View {
-            HStack {
-                Text(argument)
-                    .monospaced()
-                    .foregroundStyle(isHoveringOverArgument ? .red : .secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+            HStack(spacing: 5) {
+                Text(argument).monospaced().lineLimit(1)
+                Image(systemName: "xmark").font(.caption2.weight(.bold))
             }
-            .background(in: .capsule)
-            .backgroundStyle(.quinary)
-            .onHover { hovering in
-                withAnimation { isHoveringOverArgument = hovering }
-            }
+            .foregroundStyle(isHovering ? .red : .secondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(.quaternary, in: .capsule)
+            .onHover { isHovering = $0 }
             .onTapGesture {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    launchArguments.removeAll(where: { $0 == argument })
-                    if launchArguments.isEmpty {
-                        game.launchArguments = .init()
-                    }
-                }
+                launchArguments.removeAll { $0 == argument }
+                game.launchArguments = launchArguments
             }
+            .help("Remove \(argument)")
         }
     }
 }

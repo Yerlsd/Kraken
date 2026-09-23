@@ -1,99 +1,87 @@
-//
-//  HomeView.swift
-//  Kraken
-//
-//  Created by vapidinfinity (esi) on 12/9/2023.
-//
-
-// Copyright © 2023-2025 vapidinfinity
-
 import SwiftUI
-import Cocoa
 import SwordRPC
 
-/// The main view displaying the home screen of the Kraken app.
+/// The landing page for Kraken.
+///
+/// The home screen is intentionally a dashboard rather than a settings form:
+/// one hero game, then useful shelves. Every shelf uses adaptive layouts so
+/// resizing the window never produces clipped cards or oversized fixed panels.
 struct HomeView: View {
-    @EnvironmentObject var networkMonitor: NetworkMonitor
-    @Bindable var gameDataStore: GameDataStore = .shared
+    @Bindable private var gameDataStore: GameDataStore = .shared
 
-    @AppStorage("gameCardSize") private var gameCardSize: Double = 260.0
+    @State private var heroImageEmpty = true
 
-    @State private var isImageEmpty = true
-    @State private var isFavouritesSectionExpanded = true
-    @State private var isContainersSectionExpanded = true
-
-    private var favouriteGamesExcludingRecent: [Game] {
+    private var favourites: [Game] {
         gameDataStore.library
-            .filter(\.self.isFavourited)
+            .filter(\.isFavourited)
             .filter { $0 != gameDataStore.recent }
     }
 
-    private var adaptiveCardWidth: CGFloat {
-        min(max(gameCardSize, 240), 330)
+    private var recentGames: [Game] {
+        gameDataStore.library
+            .filter { $0.lastLaunched != nil }
+            .sorted { ($0.lastLaunched ?? .distantPast) > ($1.lastLaunched ?? .distantPast) }
+            .prefix(6)
+            .map { $0 }
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    continuePlayingView
-                        .frame(maxWidth: .infinity)
-                        .frame(minHeight: 250, maxHeight: min(360, geometry.size.height * 0.52))
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 28) {
+                hero
 
-                    Form {
-                        Section("Your Favourites", isExpanded: $isFavouritesSectionExpanded) {
-                            if favouriteGamesExcludingRecent.isEmpty {
-                                HStack {
-                                    Spacer()
-                                    ContentUnavailableView(
-                                        "No Favourites",
-                                        systemImage: "star.slash",
-                                        description: Text("Favourite a game to keep it close at hand.")
-                                    )
-                                    Spacer()
-                                }
-                                .padding(.vertical, 8)
-                            } else {
-                                LazyVGrid(
-                                    columns: [
-                                        GridItem(.adaptive(minimum: adaptiveCardWidth, maximum: 330), spacing: 14)
-                                    ],
-                                    spacing: 14
-                                ) {
-                                    ForEach(favouriteGamesExcludingRecent) { game in
-                                        if let binding = gameDataStore.binding(for: game.id) {
-                                            GameCard(game: binding)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 6)
+                if !recentGames.isEmpty {
+                    shelf(title: "Recently Played", subtitle: "Jump back into your last games") {
+                        ForEach(recentGames) { game in
+                            gameBinding(for: game) { binding in
+                                GameCard(game: binding)
                             }
                         }
+                    }
+                }
 
-                        Section("Your Containers", isExpanded: $isContainersSectionExpanded) {
-                            ContainerListView()
+                shelf(title: "Favorites", subtitle: "Your pinned games") {
+                    if favourites.isEmpty {
+                        emptyShelf(
+                            title: "No favorites yet",
+                            message: "Star a game in your Library and it will appear here.",
+                            systemImage: "star"
+                        )
+                    } else {
+                        ForEach(favourites) { game in
+                            gameBinding(for: game) { binding in
+                                GameCard(game: binding)
+                            }
                         }
                     }
-                    .formStyle(.grouped)
                 }
+
+                ContainerListView()
+                    .padding(.top, 2)
             }
+            .padding(.horizontal, 28)
+            .padding(.top, 22)
+            .padding(.bottom, 32)
         }
-        .ignoresSafeArea(edges: .top)
-        .customTransform { view in
-            if #available(macOS 15.0, *) {
-                view
-                    .toolbar(removing: .title)
-                    .toolbarBackgroundVisibility(.hidden)
-            } else {
-                view.toolbarBackground(.hidden)
-            }
-        }
+        .scrollContentBackground(.hidden)
+        .background(Color(nsColor: .windowBackgroundColor))
         .navigationTitle("Home")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink(destination: LibraryView()) {
+                    Label("Browse Library", systemImage: "square.grid.2x2")
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .onChange(of: gameDataStore.recent?.id) { _, _ in
+            heroImageEmpty = true
+        }
         .task(priority: .background) {
             discordRPC.setPresence({
                 var presence: RichPresence = .init()
-                presence.details = "Viewing home"
-                presence.state = "Idle"
+                presence.details = "Browsing Kraken"
+                presence.state = "Home"
                 presence.timestamps.start = .now
                 presence.assets.largeImage = "macos_512x512_2x"
                 return presence
@@ -102,71 +90,142 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private var continuePlayingView: some View {
-        if let recentGame = gameDataStore.recent {
+    private var hero: some View {
+        if let recent = gameDataStore.recent,
+           let binding = gameDataStore.binding(for: recent.id) {
             ZStack(alignment: .bottomLeading) {
-                GameImageCard(url: recentGame.horizontalImageURL, isImageEmpty: $isImageEmpty)
-                    .aspectRatio(16 / 9, contentMode: .fill)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipped()
+                GameImageCard(
+                    game: recent,
+                    url: recent.horizontalImageURL,
+                    isImageEmpty: $heroImageEmpty
+                )
+                .aspectRatio(2.25, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .clipped()
+
+                if heroImageEmpty {
+                    heroFallback
+                        .transition(.opacity)
+                }
 
                 LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0.15),
-                        .init(color: .black.opacity(0.78), location: 1.0)
-                    ],
-                    startPoint: .top,
+                    colors: [.clear, .black.opacity(0.82)],
+                    startPoint: .center,
                     endPoint: .bottom
                 )
 
-                HStack(alignment: .bottom, spacing: 14) {
-                    if isImageEmpty && recentGame.isFallbackImageAvailable {
-                        GameImageCard.FallbackGameImageCard(game: .constant(recentGame))
-                            .frame(width: 56, height: 56)
-                    }
+                VStack(alignment: .leading, spacing: 12) {
+                    Label("CONTINUE PLAYING", systemImage: "play.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.78))
 
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text("CONTINUE PLAYING")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.72))
+                    GameCard.TitleAndInformationView(
+                        game: binding,
+                        font: .largeTitle,
+                        withSubscriptedInfo: true
+                    )
+                    .foregroundStyle(.white)
 
-                        GameCard.TitleAndInformationView(
-                            game: .constant(recentGame),
-                            withSubscriptedInfo: true
-                        )
-                        .foregroundStyle(.white)
-
-                        if let recentBinding = gameDataStore.binding(for: recentGame.id) {
-                            GameCard.ButtonsView(game: recentBinding, withLabel: true)
-                                .clipShape(.capsule)
-                        }
-                    }
+                    GameCard.ButtonsView(game: binding, withLabel: true)
+                        .buttonStyle(.borderedProminent)
+                        .clipShape(.capsule)
                 }
-                .padding(20)
+                .padding(24)
             }
-            .clipShape(.rect(cornerRadius: 18))
-            .contentShape(.rect(cornerRadius: 18))
+            .clipShape(.rect(cornerRadius: 22))
+            .shadow(color: .black.opacity(0.16), radius: 18, y: 8)
+            .animation(.easeInOut(duration: 0.25), value: heroImageEmpty)
         } else {
             HStack(spacing: 18) {
-                Image(systemName: "gamecontroller")
-                    .font(.system(size: 36, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Image("KrakenLogo")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .clipShape(.rect(cornerRadius: 18))
 
                 VStack(alignment: .leading, spacing: 5) {
                     Text("Welcome to Kraken")
-                        .font(.title2.weight(.semibold))
-
-                    Text("Your recently played game will appear here. Launch a game from your Library to get started.")
+                        .font(.title.bold())
+                    Text("Your recently played game will appear here. Browse your Library to get started.")
                         .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.regularMaterial)
+            .clipShape(.rect(cornerRadius: 22))
+        }
+    }
+
+    private var heroFallback: some View {
+        ZStack {
+            LinearGradient(
+                colors: [Color.accentColor.opacity(0.24), .black.opacity(0.22)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            Image("KrakenLogo")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 116, height: 116)
+                .clipShape(.rect(cornerRadius: 24))
+                .shadow(color: .black.opacity(0.24), radius: 18, y: 8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+                .padding(36)
+        }
+    }
+
+    @ViewBuilder
+    private func shelf<Content: View>(
+        title: String,
+        subtitle: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .lastTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.title2.bold())
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
                 Spacer()
             }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(.background.secondary)
-            .clipShape(.rect(cornerRadius: 18))
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 190, maximum: 250), spacing: 16)],
+                spacing: 16,
+                content: content
+            )
+        }
+    }
+
+    private func emptyShelf(title: String, message: String, systemImage: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .font(.title2)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title).font(.headline)
+                Text(message).font(.subheadline).foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.regularMaterial)
+        .clipShape(.rect(cornerRadius: 16))
+    }
+
+    @ViewBuilder
+    private func gameBinding<Content: View>(for game: Game, @ViewBuilder content: (Binding<Game>) -> Content) -> some View {
+        if let binding = gameDataStore.binding(for: game.id) {
+            content(binding)
         }
     }
 }

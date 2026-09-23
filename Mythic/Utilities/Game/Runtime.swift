@@ -19,6 +19,14 @@ enum RuntimeID: String, Codable, Equatable, Hashable, Sendable, CaseIterable {
 
     /// The side-by-side Wine 11 runtime used by Engine 3.
     case wine11 = "wine-11"
+
+    var displayName: String {
+        switch self {
+        case .mythicEngine: "Kraken Engine 2"
+        case .gptk: "GPTK 4"
+        case .wine11: "Wine 11"
+        }
+    }
 }
 
 /// Data describing a runtime available to Kraken.
@@ -26,7 +34,7 @@ struct Runtime: Codable, Equatable, Hashable, Sendable, Identifiable {
     let id: RuntimeID
     let name: String
 
-    static let mythicEngine = Runtime(id: .mythicEngine, name: "Mythic Engine")
+    static let mythicEngine = Runtime(id: .mythicEngine, name: RuntimeID.mythicEngine.displayName)
     static let gptk = Runtime(id: .gptk, name: "GPTK 4")
     static let wine11 = Runtime(id: .wine11, name: "Wine 11")
 
@@ -96,7 +104,7 @@ extension Engine {
         var errorDescription: String? {
             switch runtimeID {
             case .mythicEngine:
-                return String(localized: "Mythic Engine is not installed.")
+                return String(localized: "Kraken Engine 2 is not installed.")
             case .gptk:
                 return String(localized: "GPTK 4 is not installed.")
             case .wine11:
