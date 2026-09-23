@@ -616,6 +616,7 @@ final class Legendary {
                 // FIXME: because of this, terminating the process used to launch it will NOT
                 // FIXME: terminate the wine subprocess.. this is a KNOWN ISSUE
                 
+                launchSessionForCancellation?.transitionToTerminating()
                 process.terminate()
                 if let session = launchSessionForCancellation {
                     session.recordTermination(exitCode: 15, reason: .userCancelled)
